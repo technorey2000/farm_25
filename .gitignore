@@ -7,6 +7,9 @@
 *.obj
 *.elf
 
+# Build files
+build
+
 # Linker output
 *.ilk
 *.map
@@ -50,3 +53,4 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+sdkconfig.old

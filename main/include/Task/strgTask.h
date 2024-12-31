@@ -1,0 +1,6 @@
+#ifndef HEADER_FILES_TASK_STORAGE_TASK_H_
+#define HEADER_FILES_TASK_STORAGE_TASK_H_
+
+void strgTaskApp(void);
+
+#endif /* HEADER_FILES_TASK_STORAGE_TASK_H_ */

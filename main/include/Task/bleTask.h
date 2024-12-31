@@ -1,0 +1,6 @@
+#ifndef HEADER_FILES_TASK_BLETASK_H_
+#define HEADER_FILES_TASK_BLETASK_H_
+
+void bleTaskApp(void);
+
+#endif /* HEADER_FILES_TASK_BLETASK_H_ */
