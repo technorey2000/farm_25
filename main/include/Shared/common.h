@@ -594,6 +594,7 @@ enum dispatcher_ping_resp {
 	DSPR_PING_ERROR = 1
 };
 
+
 //---------------------------------------------------------------------------------
 //Serial Parameters
 //---------------------------------------------------------------------------------
@@ -1894,6 +1895,17 @@ typedef struct lox_queue_data
     enqueueData_t lox_data[MAX_QUEUE_DATA_COUNT];
 } __attribute__((__packed__)) lox_queue_data_t;
 
+
+//---------------------------------------------------------------------------------
+//Sensor Parameters
+//---------------------------------------------------------------------------------
+#define SENSOR_PIN ADC1_CHANNEL_0  // GPIO36
+#define DEFAULT_VREF 1100 // Default Vref in millivolts
+#define WINDOW_SIZE 10   //Number of samples to use for the average
+
+// Calibration values
+#define V_DRY 2862  // Voltage corresponding to dry soil
+#define V_WET 1327  // Voltage corresponding to wet soil
 
 
 #endif /* SHARED_FILES_HEADER_FILES_COMMON_H_ */
