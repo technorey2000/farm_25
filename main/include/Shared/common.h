@@ -93,6 +93,7 @@ enum message_address {
     MSG_ADDR_STRG       = 4,    //Storage module
     MSG_ADDR_BLE        = 5,    //BLE module
     MSG_ADDR_WIFI       = 6,    //Wifi module
+    MSG_ADDR_SNR        = 7,    //Sensors module
 };
 
 enum message_data_type {
@@ -147,7 +148,7 @@ enum system_wakeup_reasons {
 // storage		- 	4000  to 4999
 // ble			- 	5000  to 5999
 // Wifi		    -	6000  to 6999
-// mod1		    - 	7000  to 7999
+// sensors		- 	7000  to 7999
 // mod2			-	8000  to 8999
 // mod3		    -	9000  to 9999
 // mod4		    -	10000 to 10999
@@ -1909,6 +1910,33 @@ typedef struct lox_queue_data
 
 //For DHT11 sensor
 #define DHT11_PIN GPIO_NUM_4 // GPIO4
+
+//External Queue Handles:	
+extern QueueHandle_t snrQueueHandle;
+
+// sensors		- 	7000  to 7999
+enum snr_cmd_type {
+    SNR_CMD_UNKNOWN         = -1,
+    SNR_CMD_INIT            = 7000,    //intialize task
+    SNR_CMD_PING            = 7001,    //echo message received back to sender
+    SNR_CMD_STATUS          = 7002,    //Send back status to sender
+
+    SNR_CMD_LOG1_TEST		= 7800,		//Send information log to mobile device via BLE
+    SNR_CMD_LOG2_TEST		= 7801,		//Send error log to mobile device via BLE
+};
+
+enum snr_status {
+    SNR_INIT_UNKNOWN  		= -1,
+    SNR_INIT_COMPLETE 		= 0,
+    SNR_INIT_ERROR    		= 1,
+    SNR_STATUS_GOOD   		= 2,
+    SNR_STATUS_FAILURE		= 3
+};  
+
+enum snr_ping_resp {
+    SNR_PING_RECEIVED 		= 0,
+    SNR_PING_ERROR    		= 1
+};
 
 
 #endif /* SHARED_FILES_HEADER_FILES_COMMON_H_ */

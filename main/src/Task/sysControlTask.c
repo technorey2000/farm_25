@@ -19,6 +19,7 @@
 #include "Task/stateMachines.h"
 #include "Task/strgTask.h"
 #include "Task/bleTask.h"
+#include "Task/sensorsTask.h"
 
 
 //Local Functions:

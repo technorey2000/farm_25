@@ -22,6 +22,7 @@
 #include "Task/dispatcherTask.h"
 #include "Task/strgTask.h"
 #include "Task/bleTask.h"
+#include "Task/sensorsTask.h"
 
 #include "../components/dht/include/dht11.h"
 
@@ -36,6 +37,7 @@ void sysControlTask(void *param);
 void dispatcherTask(void *param);
 void strgTask(void *param);
 void bleTask(void *param);
+void snrTask(void *param);
 
 static uint32_t systemTimeStamp_ms = 0;
 static void sync_timer_callback(void* arg);
@@ -46,6 +48,7 @@ QueueHandle_t sysControlQueueHandle;
 QueueHandle_t dispatcherQueueHandle;
 QueueHandle_t strgQueueHandle;
 QueueHandle_t bleQueueHandle;
+QueueHandle_t snrQueueHandle;
 
 //Event Queue Handler
 QueueHandle_t eventQueueHandle;
@@ -59,6 +62,7 @@ BaseType_t sysControlTaskHandle;
 BaseType_t dispatcherTaskHandle;
 BaseType_t strgTaskHandle;
 BaseType_t bleTaskHandle;
+BaseType_t snrTaskHandle;
 
 RTC_NOINIT_ATTR uint32_t otaSignature;
 RTC_NOINIT_ATTR char wifiSwUrl[SOFTWARE_URL_MAX_CHARACTERS];
@@ -153,6 +157,7 @@ int app_main() {
     dispatcherQueueHandle   = xQueueCreate( RTOS_QUEUE_SIZE, sizeof( RTOS_message_t ) );
     strgQueueHandle         = xQueueCreate( RTOS_QUEUE_SIZE, sizeof( RTOS_message_t ) );
     bleQueueHandle          = xQueueCreate( RTOS_QUEUE_SIZE, sizeof( RTOS_message_t ) ); 
+    snrQueueHandle          = xQueueCreate( RTOS_QUEUE_SIZE, sizeof( RTOS_message_t ) );
 
     eventQueueHandle        = xQueueCreate( EVENT_QUEUE_SIZE, sizeof( EVENT_message_t ) );
     logQueueHandle          = xQueueCreate( LOG_QUEUE_SIZE, STRING_MAX_LOG_CHARACTERS );
@@ -163,6 +168,7 @@ int app_main() {
     dispatcherTaskHandle    = xTaskCreate(dispatcherTask,   "dispatcher",   RTOS_TASK_STACK_SIZE_2K,  NULL, RTOS_TASK_PRIORITY, NULL);
     strgTaskHandle          = xTaskCreate(strgTask,         "storage",      RTOS_TASK_STACK_SIZE_4K,  NULL, RTOS_TASK_PRIORITY, NULL);
     bleTaskHandle           = xTaskCreate(bleTask,          "ble",          RTOS_TASK_STACK_SIZE_4K,  NULL, RTOS_TASK_PRIORITY, NULL);
+    snrTaskHandle           = xTaskCreate(snrTask,          "snr",          RTOS_TASK_STACK_SIZE_4K,  NULL, RTOS_TASK_PRIORITY, NULL);
 
     sysStartSystem();
 
@@ -226,6 +232,14 @@ void bleTask(void *param)
   {
 	  bleTaskApp();
   }
+}
+
+void snrTask(void *param)
+{
+  while(1)
+  {
+    snrTaskApp();
+    }
 }
 
 // Function to calculate the running average
