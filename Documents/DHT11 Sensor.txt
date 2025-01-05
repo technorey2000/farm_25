@@ -1,0 +1,73 @@
+Here's an example of how to interface with a DHT11 temperature and humidity sensor using the ESP32 and ESP-IDF:
+
+Required Components
+ESP32 Development Board
+
+DHT11 Sensor
+
+Breadboard and Jumper Wires
+
+Wiring
+Connect the VCC pin of the DHT11 to the 3.3V pin on the ESP32.
+
+Connect the GND pin of the DHT11 to the GND pin on the ESP32.
+
+Connect the DATA pin of the DHT11 to a GPIO pin on the ESP32 (e.g., GPIO4).
+
+Example Code
+First, install the esp-dht library using idf.py:
+
+sh
+idf.py add-dependency espressif/esp-dht
+Now, you can create a project with the following code to read from the DHT11 sensor:
+
+c
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/gpio.h"
+#include "esp_log.h"
+#include "dht.h"
+
+#define DHT11_PIN GPIO_NUM_4  // GPIO4
+
+static const char *TAG = "DHT11 Example";
+
+void read_dht11(void *pvParameter) {
+    while (1) {
+        int16_t temperature = 0;
+        int16_t humidity = 0;
+
+        if (dht_read_data(DHT_TYPE_DHT11, DHT11_PIN, &humidity, &temperature) == ESP_OK) {
+            ESP_LOGI(TAG, "Humidity: %d.%d%% Temp: %d.%dC",
+                     humidity / 10, humidity % 10,
+                     temperature / 10, temperature % 10);
+        } else {
+            ESP_LOGE(TAG, "Could not read data from sensor");
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(2000)); // Wait for 2 seconds before reading again
+    }
+}
+
+void app_main(void) {
+    xTaskCreate(&read_dht11, "read_dht11", 2048, NULL, 5, NULL);
+}
+Explanation
+Include Headers: The necessary headers for FreeRTOS, GPIO, logging, and the DHT library are included.
+
+Define Sensor Pin: The DHT11 pin (GPIO4) is defined.
+
+Read DHT11 Data: The read_dht11 function reads temperature and humidity data from the DHT11 sensor using the dht_read_data function. It logs the readings every 2 seconds.
+
+Create Task: In app_main, a FreeRTOS task is created to periodically read data from the DHT11 sensor and log it.
+
+This code reads temperature and humidity data from the DHT11 sensor, logs the readings, and repeats the process every 2 seconds.
+
+set(EXTRA_COMPONENT_DIRS)
+
+cd components
+git clone https://github.com/adafruit/DHT-sensor-library.git dht
+
+use this for esp-idf:
+https://github.com/Anacron-sec/esp32-DHT11.git

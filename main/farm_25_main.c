@@ -12,6 +12,7 @@
 #include "esp_adc_cal.h"
 #include "driver/adc.h"
 
+
 //Common includes
 #include "Shared/common.h"
 
@@ -21,6 +22,8 @@
 #include "Task/dispatcherTask.h"
 #include "Task/strgTask.h"
 #include "Task/bleTask.h"
+
+#include "../components/dht/include/dht11.h"
 
 static char tag[]="arc_cpp_main";
 
@@ -89,6 +92,16 @@ int app_main() {
   // Characterize ADC
   esp_adc_cal_characteristics_t *adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
   esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+
+
+  DHT11_init(GPIO_NUM_4);
+
+  while(1) {
+      printf("Temperature is %d \n", DHT11_read().temperature);
+      printf("Humidity is %d\n", DHT11_read().humidity);
+      printf("Status code is %d\n", DHT11_read().status);
+      vTaskDelay(pdMS_TO_TICKS(1000));
+  }
 
   while (1) {
       // Read raw ADC value
@@ -227,3 +240,4 @@ void calculate_running_average(float new_value, float *average, float *window, i
     // Update the index to the next position in the window
     *index = (*index + 1) % WINDOW_SIZE;
 }
+

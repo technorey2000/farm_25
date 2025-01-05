@@ -1907,5 +1907,8 @@ typedef struct lox_queue_data
 #define V_DRY 2862  // Voltage corresponding to dry soil
 #define V_WET 1327  // Voltage corresponding to wet soil
 
+//For DHT11 sensor
+#define DHT11_PIN GPIO_NUM_4 // GPIO4
+
 
 #endif /* SHARED_FILES_HEADER_FILES_COMMON_H_ */
