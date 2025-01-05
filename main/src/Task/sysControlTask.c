@@ -81,14 +81,18 @@ static sys_seq_t sysSeq;
 char sctl_TmpStr[SYS_STRING_MAX_ARRAY_CHARACTERS];
 char sys_TmpStr[SYS_STRING_MAX_ARRAY_CHARACTERS];
 
-static sys_init_complete_t          sysInitComplete;
-static sys_init_result_t            sysInitResult;
+//Command response flags
+static sys_init_complete_t      sysInitComplete;
+static sys_init_result_t        sysInitResult;
 
-static sys_begin_complete_t          sysBeginComplete;
-static sys_begin_result_t            sysBeginResult;
+static sys_begin_complete_t     sysBeginComplete;
+static sys_begin_result_t       sysBeginResult;
 
-static sys_ble_complete_t  sysBleComp;
-static sys_ble_result_t    sysBleResult;
+static sys_ble_complete_t       sysBleComplete;
+static sys_ble_result_t         sysBleResult;
+
+static sys_snr_complete_t       sysSnrComplete;
+static sys_snr_result_t         sysSnrResult;
 
 //External Functions:
 
@@ -318,12 +322,12 @@ void sctl_processSctlResponseMsg(void)
 
 		case BLE_CMD_ADV_START:
             sysBleResult.Adv_On         = bleProcessResult("Turn BLE Advertising On");
-            sysBleComp.is_Adv_On_Done   = true;
+            sysBleComplete.is_Adv_On_Done   = true;
             break;
 
 		case BLE_CMD_SET_SN:
             sysBleResult.SN_Loaded          = bleProcessSnResult("Load Serial Number");
-            sysBleComp.is_SN_Set            = true;
+            sysBleComplete.is_SN_Set            = true;
 
             sysBeginResult.snInBLE = sysBleResult.SN_Loaded;
             sysBeginComplete.is_SnReadInBLE = true;
@@ -333,6 +337,11 @@ void sctl_processSctlResponseMsg(void)
         case WIFI_CMD_INIT:
             if (sctl_Pm_sysCtrlRxMsg.msgData == WIFI_INIT_COMPLETE){sysInitResult.wifiInit = true;}
             sysInitComplete.is_WifiDone = true;
+            break;	
+
+        case SNR_CMD_INIT:
+            if (sctl_Pm_sysCtrlRxMsg.msgData == SNR_INIT_COMPLETE){sysInitResult.snrInit = true;}
+            sysInitComplete.is_SnrDone = true;
             break;	
 
         default:;
@@ -384,7 +393,7 @@ void sysProcessTestStateMachineStart(uint16_t stateMachineId)
     {
         case SM_TST_SYS_INIT:               sysProcessSmSysInitStart(&sysInitComplete);                     break;  
         case SM_TST_SYS_BEGIN:              sysProcessSmSysBeginStart(&sysBeginComplete);                   break;  
-        case SM_TST_BLE_ADV_ON:             sysProcessSmBleOnStart(&sysBleComp);                            break;  
+        case SM_TST_BLE_ADV_ON:             sysProcessSmBleOnStart(&sysBleComplete);                            break;  
         default:    
             ESP_LOGE(SYS_TAG, "Call to a non-exsiting statemachine in sysProcessTestStateMachine");    
     }
@@ -405,7 +414,7 @@ bool sysProcessTestStateMachine(uint16_t stateMachineId)
             break;
 
         case SM_TST_BLE_ADV_ON:         
-            retVal = sysProcessSmSysBegin(&sysBleComp, &sysBleResult);
+            retVal = sysProcessSmSysBegin(&sysBleComplete, &sysBleResult);
             break;
 
         default:    
@@ -662,13 +671,13 @@ void sys_ProcessStateSequences(void)
                     }
                     else
                     {
-                        sysProcessSmBleOnStart(&sysBleComp);
+                        sysProcessSmBleOnStart(&sysBleComplete);
                         sysCurrentEvtSeq = SCTL_SEQ4_ST80;
                     }
                     break;
 
                 case SCTL_SEQ4_ST80: // BLE On sequence
-                    sysCurrentSmComplete = sysProcessSmBleOn(&sysBleComp, &sysBleResult);
+                    sysCurrentSmComplete = sysProcessSmBleOn(&sysBleComplete, &sysBleResult);
 
                     if (sysCurrentSmComplete)
                     {

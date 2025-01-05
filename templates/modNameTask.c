@@ -267,6 +267,40 @@ void modNameSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8
 		<Structure Parameters>;
 		} <structure name>_t;
 
+    //For state machines
+	//---------------------------------------------------------------------------------
+	//System state machines
+	//---------------------------------------------------------------------------------
+
+	//Add Sequences here:
+	enum system_state_machines {
+		//System test state machines
+		SM_TST_SYS_INIT                 = 1,    //test sysProcessSmSysInit
+		SM_TST_SYS_BEGIN                = 2,   //test sysProcessSmSysBegin 
+		SM_TST_BLE_ADV_ON               = 3,    //test BLE on
+		MAX_STATE_MACHINES              = 4,   //This is always the last one in the list 
+	};		
+
+	//---------------------------------------------------------------------------------
+	// modName on State Machine
+	//---------------------------------------------------------------------------------
+
+	typedef struct sys_modName_complete
+	{
+	uint8_t start_SM			: 1;    //Start the state machine? 1 = yes, 0 = no
+	uint8_t modName_unused		: 7;
+
+	uint8_t modName_unused1		: 7;    
+	uint8_t is_modNameDone		: 1;    //modName seqence complete
+	} sys_modName_complete_t;
+
+	typedef struct sys_modName_result
+	{
+	uint8_t modName_unused		: 8;
+
+	uint8_t modName_unused1		: 7;
+	uint8_t modNameResult		: 1;    //modName sequence passed
+	} sys_modName_result_t;
 
 	Note: the modName needs to be all capitals for the following:
 	
@@ -313,8 +347,7 @@ void modNameSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8
         modName_PING_RECEIVED 		= 0,
         modName_PING_ERROR    		= 1
     };
-  
-  
+   
     ------------------------------------------------------------------------------------------------------
     put the following in the main.c file:
 
@@ -370,6 +403,10 @@ void modNameSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8
 
 	//Task Includes:	  
     #include "Task/modNameTask.h"
+
+	//Command response flags
+	static sys_modName_complete_t       sysModNameComplete;
+	static sys_modName_result_t         sysModNameResult;
 	
 	//Initialization flags
 	static bool syscmodNameInit = false;        //modName port has been intialized
@@ -442,7 +479,72 @@ void modNameSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8
             sysInitComplete.is_modNameDone = true;
 			if (sctl_Pm_sysCtrlRxMsg.msgData == modName_INIT_COMPLETE){sysInitResult.modNameInit = true;}
 			break;		
-				
+
+
+	//Add this to function sctl_processSctlResponseMsg
+	        case modName_CMD_INIT:
+            if (sctl_Pm_sysCtrlRxMsg.msgData == modName_INIT_COMPLETE){sysInitResult.modNameInit = true;}
+            sysInitComplete.is_ModNameDone = true;
+            break;	
+
+	//Add modName init to the system control state machine:
+	//---------------------------------------------------------------------------------
+	//System initalizaion State Machine
+	//---------------------------------------------------------------------------------
+
+	typedef struct sys_init_complete
+	{
+	uint8_t start_SM			: 1;    //Start the state machine? 1 = yes, 0 = no
+	uint8_t is_DsprDone			: 1;    //Dispatcher initalization complete
+	uint8_t is_SerDone			: 1;    //Serial initalization complete
+	uint8_t is_StrgDone			: 1;    //Storage initalization complete
+	uint8_t is_BleDone			: 1;    //BLE initalization complete
+	uint8_t is_WifiDone			: 1;    //Wifi initalization complete
+	uint8_t is_ModNameDone		: 1;    //modName initalization complete   <===================== Add here
+	uint8_t unused				: 1;
+
+	uint8_t unused1				: 7;
+	uint8_t is_SystemDone		: 1;    //System initalization complete
+	} sys_init_complete_t;
+
+	typedef struct sys_init_result
+	{
+	uint8_t dsprInit			: 1;    //Dispatcher initalization complete
+	uint8_t serInit				: 1;    //Serial port has been intialized
+	uint8_t strgInit			: 1;    //Storage module has been intialized
+	uint8_t bleInit				: 1;    //BLE module has been intialized
+	uint8_t wifiInit			: 1;    //Wifi module has been intialized
+	uint8_t modNameInit          : 1;    //ModName module has been intialized <===================== Add here
+	uint8_t unused				: 2;
+
+	uint8_t unused1				: 7;
+	uint8_t systemInit			: 1;    //System has been initalized
+	} sys_init_result_t;
+
+	typedef struct sys_begin_complete
+	{                                   //true = yes
+	uint8_t start_SM          : 1;    //Start the state machine?
+	uint8_t is_SnReadInNvs    : 1;    //Was the currently stored Serial Number loaded into the NVS data structure?
+	uint8_t is_SnReadInBLE    : 1;    //Was the currently stored Serial Number loaded into the BLE module?
+	uint8_t is_BleStarted     : 1;    //Is the BLE module started?
+	uint8_t is_ModNameStarted     : 1;    //Is the ModName module started?  <====================  Add here
+	uint8_t unused1    		: 4;
+
+	uint8_t unused2    		: 7;
+	uint8_t is_SysBeginDone   : 1;    //System Begin complete?
+	} sys_begin_complete_t;
+
+	typedef struct sys_begin_result
+	{
+	uint8_t snInNvs           : 1;    //Was loading the Serial Number into the NVS data structure successful?
+	uint8_t snInBLE           : 1;    //Was loading the Serial Number into the BLE module successful?
+	uint8_t bleStartDone      : 1;    //Is the BLE module started successfully?
+	uint8_t modNameStartDone      : 1;    //Is the modName module started successfully?  <================== Add here
+	uint8_t uUnused1   		: 5;
+
+	uint8_t uUnused2   		: 7;  
+	uint8_t systemBegin       : 1;    //System has been initalized
+	} sys_begin_result_t;					
 
     ------------------------------------------------------------------------------------------------------
 	Put the following in the dispatcherTask.c :
@@ -644,6 +746,29 @@ void modNameSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8
     ------------------------------------------------------------------------------------------------------	
 	REMOVE THESE NOTES BEFORE BUILDING CODE!!!
     ------------------------------------------------------------------------------------------------------
+
+
+	//In stateMachines.c:
+	//Add this to the
+
+	        case SCTL_SM1_STXX:
+                if (sysInitComplete->is_ModNameDone)
+                {
+                    if(sysInitResult->modNameInit)
+                    {
+                        smSysInitState = SCTL_SM1_ST98;
+                    }
+                    else
+                    {
+                        ESP_LOGE(SM_TAG,"ModName init Failed");
+                        smSysInitState = SCTL_SM1_ST99;
+                    }
+                }
+                break;
+
+	//In stateMachines.h:
+
+
 
  /* [] END OF FILE */
 

@@ -1,6 +1,6 @@
 #ifndef HEADER_FILES_TASK_SENSORS_TASK_H_
 #define HEADER_FILES_TASK_SENSORS_TASK_H_
 
-void sensorsTaskApp(void);
+void snrTaskApp(void);
 
 #endif /* HEADER_FILES_TASK_SENSORS_TASK_H_ */

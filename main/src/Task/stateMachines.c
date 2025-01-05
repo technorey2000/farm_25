@@ -214,18 +214,35 @@ bool sysProcessSmSysInit(sys_init_complete_t * sysInitComplete, sys_init_result_
                 break;
 
             case SCTL_SM1_ST40:
-                sysInitComplete->is_WifiDone = true;    //temporary - remove
-                sysInitResult->wifiInit = true;         //temporary - remove
+                sysInitComplete->is_WifiDone = true;    
+                sysInitResult->wifiInit = true;        
 
                 if (sysInitComplete->is_WifiDone)
                 {
                     if(sysInitResult->wifiInit)
                     {
-                        smSysInitState = SCTL_SM1_ST98;
+                        ESP_LOGI(SM_TAG,"Initialize Sensors");
+                        sysSendMessage(MSG_ADDR_SNR, MSG_DATA_0, SNR_CMD_INIT,  NULL, MSG_DATA_COMMAND_ONLY, MSG_DATA_0_LEN);
+                        smSysInitState = SCTL_SM1_ST50;
                     }
                     else
                     {
                         ESP_LOGE(SM_TAG,"Wifi init Failed");
+                        smSysInitState = SCTL_SM1_ST99;
+                    }
+                }
+                break;
+
+            case SCTL_SM1_ST50:
+                if (sysInitComplete->is_SnrDone)
+                {
+                    if(sysInitResult->snrInit)
+                    {
+                        smSysInitState = SCTL_SM1_ST98;
+                    }
+                    else
+                    {
+                        ESP_LOGE(SM_TAG,"Sensors init Failed");
                         smSysInitState = SCTL_SM1_ST99;
                     }
                 }

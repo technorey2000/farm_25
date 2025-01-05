@@ -322,12 +322,13 @@ typedef struct sys_init_complete
   uint8_t is_StrgDone       : 1;    //Storage initalization complete
   uint8_t is_BleDone        : 1;    //BLE initalization complete
   uint8_t is_WifiDone       : 1;    //Wifi initalization complete
-  uint8_t unused1			: 2;
+  uint8_t is_SnrDone        : 1;    //Sensors initalization complete
+  uint8_t unused			: 1;
 
   uint8_t is_mountDone      : 1;    //SPIFFS Mount complete
   uint8_t is_dataQDone      : 1;    //Data Queue initialization complete
   uint8_t is_logQDone       : 1;    //Log Queue initialization complete
-  uint8_t unused2       	: 4;
+  uint8_t unused1       	: 4;
   uint8_t is_SystemDone     : 1;    //System initalization complete
 } sys_init_complete_t;
 
@@ -338,12 +339,13 @@ typedef struct sys_init_result
   uint8_t strgInit          : 1;    //Storage module has been intialized
   uint8_t bleInit           : 1;    //BLE module has been intialized
   uint8_t wifiInit          : 1;    //Wifi module has been intialized
-  uint8_t unused1       	: 3;
+  uint8_t snrInit           : 1;    //Sensors module has been intialized
+  uint8_t unused            : 2;
 
   uint8_t mountInit         : 1;    //SPIFFS has been mounted
   uint8_t dataQInit         : 1;    //Data queue has been initialized
   uint8_t logQInit          : 1;    //Log queue has been initialized
-  uint8_t unused2       	: 4;
+  uint8_t unused1       	: 4;
   uint8_t systemInit        : 1;    //System has been initalized
 } sys_init_result_t;
 
@@ -357,9 +359,10 @@ typedef struct sys_begin_complete
   uint8_t is_SnReadInNvs    : 1;    //Was the currently stored Serial Number loaded into the NVS data structure?
   uint8_t is_SnReadInBLE    : 1;    //Was the currently stored Serial Number loaded into the BLE module?
   uint8_t is_BleStarted     : 1;    //Is the BLE module started?
-  uint8_t unused1    		: 4;
+  uint8_t is_SnrStarted     : 1;    //Is the snr module started?
+  uint8_t unused    		: 3;
 
-  uint8_t unused2    		: 7;
+  uint8_t unused1    		: 7;
   uint8_t is_SysBeginDone   : 1;    //System Begin complete?
 } sys_begin_complete_t;
 
@@ -368,9 +371,10 @@ typedef struct sys_begin_result
   uint8_t snInNvs           : 1;    //Was loading the Serial Number into the NVS data structure successful?
   uint8_t snInBLE           : 1;    //Was loading the Serial Number into the BLE module successful?
   uint8_t bleStartDone      : 1;    //Is the BLE module started successfully?
-  uint8_t uUnused1   		: 5;
+  uint8_t snrStartDone      : 1;    //Is the snr module started successfully?
+  uint8_t uUnused   		: 5;
 
-  uint8_t uUnused2   		: 7;  
+  uint8_t Unused1   		: 7;  
   uint8_t systemBegin       : 1;    //System has been initalized
 } sys_begin_result_t;
 
@@ -408,6 +412,27 @@ typedef struct sys_ble_result
   uint8_t ble_unused4           : 7;
   uint8_t bleResult             : 1;    //Ble sequence passed
 } sys_ble_result_t;
+
+//---------------------------------------------------------------------------------
+// Sensors on State Machine
+//---------------------------------------------------------------------------------
+
+typedef struct sys_snr_complete
+{
+uint8_t start_SM			: 1;    //Start the state machine? 1 = yes, 0 = no
+uint8_t snr_unused          : 7;
+
+uint8_t snr_unused1         : 7;    
+uint8_t is_snrDone          : 1;    //snr seqence complete
+} sys_snr_complete_t;
+
+typedef struct sys_snr_result
+{
+uint8_t snr_unused          : 8;
+
+uint8_t snr_unused1         : 7;
+uint8_t snrResult           : 1;    //snr sequence passed
+} sys_snr_result_t;
 
 //---------------------------------------------------------------------------------
 //System Controller Parameters
