@@ -1,0 +1,4 @@
+
+
+link to ESP32 Pico information: 
+https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32/esp32-pico-devkitm-2/user_guide.html#hardware-reference
