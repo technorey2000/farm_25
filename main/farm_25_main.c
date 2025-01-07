@@ -26,7 +26,7 @@
 
 #include "../components/dht/include/dht11.h"
 
-static char tag[]="arc_cpp_main";
+static char tag[]="farm_25__main";
 
 //Move these function prototypes to the sensor module
 void calculate_running_average(float new_value, float *average, float *window, int *index);
@@ -100,43 +100,43 @@ int app_main() {
 
   DHT11_init(GPIO_NUM_4);
 
-  while(1) {
-      printf("Temperature is %d \n", DHT11_read().temperature);
-      printf("Humidity is %d\n", DHT11_read().humidity);
-      printf("Status code is %d\n", DHT11_read().status);
-      vTaskDelay(pdMS_TO_TICKS(1000));
-  }
+  // while(1) {
+  //     printf("Temperature is %d \n", DHT11_read().temperature);
+  //     printf("Humidity is %d\n", DHT11_read().humidity);
+  //     printf("Status code is %d\n", DHT11_read().status);
+  //     vTaskDelay(pdMS_TO_TICKS(1000));
+  // }
 
-  while (1) {
-      // Read raw ADC value
-      uint32_t moisture_value = adc1_get_raw(SENSOR_PIN);
+  // while (1) {
+  //     // Read raw ADC value
+  //     uint32_t moisture_value = adc1_get_raw(SENSOR_PIN);
 
-      // Log moisture value
-      ESP_LOGI(TAG, "Moisture value: %ld", moisture_value);
+  //     // Log moisture value
+  //     ESP_LOGI(TAG, "Moisture value: %ld", moisture_value);
       
-      // Convert raw ADC value to calibrated voltage
-      uint32_t moisture_voltage = esp_adc_cal_raw_to_voltage(moisture_value, adc_chars);
+  //     // Convert raw ADC value to calibrated voltage
+  //     uint32_t moisture_voltage = esp_adc_cal_raw_to_voltage(moisture_value, adc_chars);
       
-      // Log calibrated voltage
-      ESP_LOGI(TAG, "Calibrated voltage: %ld mV \r\n", moisture_voltage);
-      new_value = (float)moisture_voltage;
+  //     // Log calibrated voltage
+  //     ESP_LOGI(TAG, "Calibrated voltage: %ld mV \r\n", moisture_voltage);
+  //     new_value = (float)moisture_voltage;
 
-      // Calculate the running average
-      calculate_running_average(new_value, &average_reading, window, &index);
+  //     // Calculate the running average
+  //     calculate_running_average(new_value, &average_reading, window, &index);
 
-      // Print the current running average
-      ESP_LOGI(TAG,"Running average: %.2f\n", average_reading);
+  //     // Print the current running average
+  //     ESP_LOGI(TAG,"Running average: %.2f\n", average_reading);
 
-      // Calculate moisture percentage
-      float moisture_percent = ((float)(average_reading - V_DRY) / (V_WET - V_DRY)) * 100.0;
+  //     // Calculate moisture percentage
+  //     float moisture_percent = ((float)(average_reading - V_DRY) / (V_WET - V_DRY)) * 100.0;
 
-      // Log calibrated voltage and moisture percentage
-      ESP_LOGI(TAG, "Voltage: %.2f mV, Moisture: %.2f%%", average_reading, moisture_percent);
+  //     // Log calibrated voltage and moisture percentage
+  //     ESP_LOGI(TAG, "Voltage: %.2f mV, Moisture: %.2f%%", average_reading, moisture_percent);
 
       
-      // Delay for readability
-      vTaskDelay(pdMS_TO_TICKS(1000));
-  }
+  //     // Delay for readability
+  //     vTaskDelay(pdMS_TO_TICKS(1000));
+  // }
 
   //Create sync timer
   const esp_timer_create_args_t sync_timer_args = {
@@ -239,7 +239,7 @@ void snrTask(void *param)
   while(1)
   {
     snrTaskApp();
-    }
+  }
 }
 
 // Function to calculate the running average

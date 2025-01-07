@@ -13,6 +13,7 @@
 
 
 //Local Parameters:
+static char modName_TAG[]="modName";
 RTOS_message_t modNameRxMessage;
 RTOS_message_t modNameTxMessage;
 UBaseType_t modNameNewHighWaterMark = 0;
@@ -347,6 +348,11 @@ void modNameSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8
         modName_PING_RECEIVED 		= 0,
         modName_PING_ERROR    		= 1
     };
+
+	#define SM_modName_STRING_MAX_ARRAY_CHARACTERS 150
+	#define modName_STRING_MAX_ARRAY_CHARACTERS 150
+	#define modName_MESSAGE_MAX_ARRAY_ELEMENTS  10
+	#define modName_STRING_MAX_ARRAY_LOG_ELEMENTS 10
    
     ------------------------------------------------------------------------------------------------------
     put the following in the main.c file:

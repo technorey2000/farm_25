@@ -340,6 +340,7 @@ void sctl_processSctlResponseMsg(void)
             break;	
 
         case SNR_CMD_INIT:
+            ESP_LOGI(SYS_TAG, "Process response msg - SNR_CMD_INIT");
             if (sctl_Pm_sysCtrlRxMsg.msgData == SNR_INIT_COMPLETE){sysInitResult.snrInit = true;}
             sysInitComplete.is_SnrDone = true;
             break;	

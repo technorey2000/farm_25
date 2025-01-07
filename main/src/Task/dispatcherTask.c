@@ -60,6 +60,11 @@ void dispatcherTaskApp(void)
 					xQueueSend(bleQueueHandle,&dispatcherTxMessage,0);
 					break;
 			
+				case MSG_ADDR_SNR:
+					dispatcherTxMessage = dispatcherRxMessage;
+					xQueueSend(snrQueueHandle,&dispatcherTxMessage,0);
+					break;
+			
 				case MSG_ADDR_DSPR:
 					switch(dispatcherRxMessage.msgCmd)
 					{

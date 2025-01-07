@@ -1936,6 +1936,12 @@ typedef struct lox_queue_data
 //For DHT11 sensor
 #define DHT11_PIN GPIO_NUM_4 // GPIO4
 
+
+#define SM_SNR_STRING_MAX_ARRAY_CHARACTERS 150
+#define SNR_STRING_MAX_ARRAY_CHARACTERS 150
+#define SNR_MESSAGE_MAX_ARRAY_ELEMENTS  10
+#define SNR_STRING_MAX_ARRAY_LOG_ELEMENTS 10
+
 //External Queue Handles:	
 extern QueueHandle_t snrQueueHandle;
 
