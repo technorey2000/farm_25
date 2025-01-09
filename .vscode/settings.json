@@ -15,7 +15,15 @@
     "idf.pythonBinPathWin": "C:\\esp_env\\.espressif\\python_env\\idf5.1_py3.8_env\\Scripts\\python.exe",
     "idf.toolsPathWin": "C:\\esp_env\\.espressif",
     "files.associations": {
-        "sdkconfig.h": "c"
+        "sdkconfig.h": "c",
+        "array": "c",
+        "*.tcc": "c",
+        "bitset": "c",
+        "chrono": "c",
+        "functional": "c",
+        "mutex": "c",
+        "regex": "c",
+        "tuple": "c"
     },
     "idf.flashType": "UART"
 }

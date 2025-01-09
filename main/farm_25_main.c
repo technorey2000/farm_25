@@ -9,8 +9,6 @@
 #include "esp_timer.h"
 #include <esp_log.h>
 #include "string.h"
-#include "esp_adc_cal.h"
-#include "driver/adc.h"
 
 
 //Common includes
@@ -23,13 +21,11 @@
 #include "Task/strgTask.h"
 #include "Task/bleTask.h"
 #include "Task/sensorsTask.h"
+#include "Sync/syncTask.h"
 
-#include "../components/dht/include/dht11.h"
+//#include "../components/dht/include/dht11.h"
 
-static char tag[]="farm_25__main";
-
-//Move these function prototypes to the sensor module
-void calculate_running_average(float new_value, float *average, float *window, int *index);
+//static char tag[]="farm_25__main";
 
 //Task Prototypes
 void serialTask(void *param);
@@ -74,31 +70,10 @@ RTC_NOINIT_ATTR uint8_t otaCount = 0;
 RTC_NOINIT_ATTR char otaLastVersion[SOFTWARE_VERSION_MAX_CHARACTERS];
 RTC_NOINIT_ATTR uint32_t otaCountSig;
 
-static const char *TAG = "Moisture Sensor Calibration";
+//static const char *TAG = "Moisture Sensor Calibration";
 
 int app_main() {
-  float window[WINDOW_SIZE] = {0};
-  float average_reading = 0;
-  int index = 0;
-  float new_value;
-
-  // Configure ADC width and attenuation
-  adc1_config_width(ADC_WIDTH_BIT_12);
-  adc1_config_channel_atten(SENSOR_PIN, ADC_ATTEN_DB_11);
-
-  // Check if ADC calibration values are burned into eFuse
-  esp_adc_cal_value_t cal_type = ESP_ADC_CAL_VAL_EFUSE_VREF;
-  if (esp_adc_cal_check_efuse(cal_type) == ESP_ERR_NOT_SUPPORTED) {
-      ESP_LOGW(TAG, "eFuse Vref not supported, using default Vref");
-      cal_type = ESP_ADC_CAL_VAL_DEFAULT_VREF;
-  }
-
-  // Characterize ADC
-  esp_adc_cal_characteristics_t *adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
-  esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
-
-
-  DHT11_init(GPIO_NUM_4);
+  // DHT11_init(GPIO_NUM_4);
 
   // while(1) {
   //     printf("Temperature is %d \n", DHT11_read().temperature);
@@ -106,38 +81,6 @@ int app_main() {
   //     printf("Status code is %d\n", DHT11_read().status);
   //     vTaskDelay(pdMS_TO_TICKS(1000));
   // }
-
-  // while (1) {
-  //     // Read raw ADC value
-  //     uint32_t moisture_value = adc1_get_raw(SENSOR_PIN);
-
-  //     // Log moisture value
-  //     ESP_LOGI(TAG, "Moisture value: %ld", moisture_value);
-      
-  //     // Convert raw ADC value to calibrated voltage
-  //     uint32_t moisture_voltage = esp_adc_cal_raw_to_voltage(moisture_value, adc_chars);
-      
-  //     // Log calibrated voltage
-  //     ESP_LOGI(TAG, "Calibrated voltage: %ld mV \r\n", moisture_voltage);
-  //     new_value = (float)moisture_voltage;
-
-  //     // Calculate the running average
-  //     calculate_running_average(new_value, &average_reading, window, &index);
-
-  //     // Print the current running average
-  //     ESP_LOGI(TAG,"Running average: %.2f\n", average_reading);
-
-  //     // Calculate moisture percentage
-  //     float moisture_percent = ((float)(average_reading - V_DRY) / (V_WET - V_DRY)) * 100.0;
-
-  //     // Log calibrated voltage and moisture percentage
-  //     ESP_LOGI(TAG, "Voltage: %.2f mV, Moisture: %.2f%%", average_reading, moisture_percent);
-
-      
-  //     // Delay for readability
-  //     vTaskDelay(pdMS_TO_TICKS(1000));
-  // }
-
   //Create sync timer
   const esp_timer_create_args_t sync_timer_args = {
           .callback = &sync_timer_callback,
@@ -179,6 +122,7 @@ int app_main() {
 static void sync_timer_callback(void* arg)
 {
   systemTimeStamp_ms++;
+  syncTaskApp();
 }
 
 uint32_t sys_getMsgTimeStamp(void)
@@ -240,18 +184,5 @@ void snrTask(void *param)
   {
     snrTaskApp();
   }
-}
-
-// Function to calculate the running average
-void calculate_running_average(float new_value, float *average, float *window, int *index) {
-    // Subtract the oldest value from the running sum
-    *average -= window[*index] / WINDOW_SIZE;
-
-    // Add the new value to the running sum
-    window[*index] = new_value;
-    *average += new_value / WINDOW_SIZE;
-
-    // Update the index to the next position in the window
-    *index = (*index + 1) % WINDOW_SIZE;
 }
 

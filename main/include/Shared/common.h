@@ -1942,18 +1942,27 @@ typedef struct lox_queue_data
 #define SNR_MESSAGE_MAX_ARRAY_ELEMENTS  10
 #define SNR_STRING_MAX_ARRAY_LOG_ELEMENTS 10
 
+#define SNR_READ_MOISTURE_TIMEOUT 5000 //5 secounds
+
 //External Queue Handles:	
 extern QueueHandle_t snrQueueHandle;
 
 // sensors		- 	7000  to 7999
 enum snr_cmd_type {
-    SNR_CMD_UNKNOWN         = -1,
-    SNR_CMD_INIT            = 7000,    //intialize task
-    SNR_CMD_PING            = 7001,    //echo message received back to sender
-    SNR_CMD_STATUS          = 7002,    //Send back status to sender
+    SNR_CMD_UNKNOWN             = -1,
+    SNR_CMD_INIT                = 7000,     //intialize task
+    SNR_CMD_PING                = 7001,     //echo message received back to sender
+    SNR_CMD_STATUS              = 7002,     //Send back status to sender
 
-    SNR_CMD_LOG1_TEST		= 7800,		//Send information log to mobile device via BLE
-    SNR_CMD_LOG2_TEST		= 7801,		//Send error log to mobile device via BLE
+    SNR_CMD_RD_TEMPERATURE      = 7100,     //Read temperature
+    SNR_CMD_RD_HUMIDITY         = 7101,     //Read humidity
+    SNR_CMD_RD_TH_CODE          = 7102,     //Read status from temperature/humidity sensor
+
+    SNR_CMD_RD_MOISTURE_VOLTAGE = 7200,     //Read Moisture voltage
+    SNR_CMD_RD_MOISTURE_PERCENT = 7201,     //Read Moisture Percentage
+
+    SNR_CMD_LOG1_TEST		    = 7800,		//Send information log to mobile device via BLE
+    SNR_CMD_LOG2_TEST		    = 7801,		//Send error log to mobile device via BLE
 };
 
 enum snr_status {

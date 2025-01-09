@@ -5,12 +5,17 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "string.h"
+#include "esp_adc_cal.h"
+#include "driver/adc.h"
 
 #include "Shared/common.h"
 #include "Task/sensorsTask.h"
 
 #include "Shared/cJSON.h"
 #include "Shared/messages.h"
+
+#include "../components/dht/include/dht11.h"
 
 
 //Local Parameters:
@@ -23,6 +28,24 @@ UBaseType_t snrInitHighWaterMark = 0;
 uint8_t snrStatus = SNR_INIT_UNKNOWN;
 char snrTmpStr[SNR_STRING_MAX_ARRAY_CHARACTERS];
 
+esp_adc_cal_characteristics_t *adc_chars;
+
+//For Temperature/humidity sensor
+uint32_t tmpTemperature = 0;
+uint32_t tmpHumidity = 0;
+uint32_t tmpCode = 0;
+
+//For moisture sensor
+uint32_t moisture_value = 0;
+uint32_t moisture_voltage = 0;
+float moisture_percent = 0.0;
+float new_value = 0.0;
+float window[WINDOW_SIZE] = {0};
+float average_reading = 0;
+uint32_t snrAvgIndex = 0;
+uint32_t currentTime = 0;
+uint32_t snrMositureTimeout = 0;
+
 //Local Function Prototypes:
 void snrLog(char * strPtr, bool forced, bool printTag);
 void snrLogR(char * strPtr);
@@ -31,6 +54,9 @@ void snrLogEF(char * strPtr);
 void snrLogI(char * strPtr);
 void snrLogE(char * strPtr);
 void snrSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8_t * msgDataPtr, uint32_t msgData, uint32_t msgDataLen);
+void calculate_running_average(float new_value, float *average, float *window, int *index);
+void snrTakeMostureReading(void);
+void snrTakeTemperatureReading(void);
 
 //External Functions:
 
@@ -38,14 +64,35 @@ void snrSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8_t *
 /// @param  None
 void snrTaskApp(void)
 {
+	//DHT11_init(GPIO_NUM_4);
     while(1)
     {
-        if (xQueueReceive(snrQueueHandle, &snrRxMessage, portMAX_DELAY))
+        if (xQueueReceive(snrQueueHandle, &snrRxMessage, 10))
         {	
 			switch(snrRxMessage.msgCmd)
 			{
 				case SNR_CMD_INIT:
 					ESP_LOGI(SNR_TAG, "SNR_CMD_INIT received");
+
+					// Configure ADC width and attenuation
+					adc1_config_width(ADC_WIDTH_BIT_12);
+					adc1_config_channel_atten(SENSOR_PIN, ADC_ATTEN_DB_11);
+
+					// Check if ADC calibration values are burned into eFuse
+					esp_adc_cal_value_t cal_type = ESP_ADC_CAL_VAL_EFUSE_VREF;
+					if (esp_adc_cal_check_efuse(cal_type) == ESP_ERR_NOT_SUPPORTED) {
+						ESP_LOGW(SNR_TAG, "eFuse Vref not supported, using default Vref");
+						cal_type = ESP_ADC_CAL_VAL_DEFAULT_VREF;
+					}
+
+					// Characterize ADC
+					adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
+					esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+
+					DHT11_init(GPIO_NUM_4);
+
+					snrMositureTimeout = sys_getMsgTimeStamp();
+
                     snrStatus = SNR_INIT_COMPLETE;
                     snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_8, SNR_CMD_INIT, NULL, snrStatus, MSG_DATA_8_LEN);
                     break;
@@ -54,6 +101,34 @@ void snrTaskApp(void)
 					break;
 				case SNR_CMD_STATUS:
 					//TBD
+					break;
+
+				case SNR_CMD_RD_TEMPERATURE:
+					tmpTemperature = DHT11_read().temperature;
+					printf("Temperature is %ld Deg C \n", tmpTemperature);
+					snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_32, SNR_CMD_RD_TEMPERATURE, NULL, tmpTemperature, MSG_DATA_32_LEN);
+					break;
+
+				case SNR_CMD_RD_HUMIDITY:
+					tmpHumidity = DHT11_read().humidity;
+					printf("Humidity is %ld%% \n", tmpHumidity);
+					snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_32, SNR_CMD_RD_HUMIDITY, NULL, tmpHumidity, MSG_DATA_32_LEN);
+					break;
+
+				case SNR_CMD_RD_TH_CODE:
+					tmpCode = DHT11_read().status;
+					printf("Status code is %ld \n", tmpCode);
+					snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_32, SNR_CMD_RD_TH_CODE, NULL, tmpCode, MSG_DATA_32_LEN);
+					break;
+
+				case SNR_CMD_RD_MOISTURE_VOLTAGE:
+					printf("Voltage: %.2f", average_reading);
+					snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_FLOAT, SNR_CMD_RD_MOISTURE_VOLTAGE, NULL, average_reading, MSG_DATA_32_LEN);
+					break;
+
+				case SNR_CMD_RD_MOISTURE_PERCENT:
+					printf("Moisture: %.2f%%", moisture_percent);
+					snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_FLOAT, SNR_CMD_RD_MOISTURE_PERCENT, NULL, moisture_percent, MSG_DATA_32_LEN);
 					break;
 
                 case SNR_CMD_LOG1_TEST:
@@ -69,6 +144,13 @@ void snrTaskApp(void)
 			}
 
         }
+
+		currentTime = sys_getMsgTimeStamp();
+		if ((currentTime - snrMositureTimeout) > SNR_READ_MOISTURE_TIMEOUT) {
+			snrTakeMostureReading();
+			snrTakeTemperatureReading();
+			snrMositureTimeout = sys_getMsgTimeStamp();
+		}
 
     }
  
@@ -222,5 +304,59 @@ void snrSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8_t *
     }
 
 }
- /* [] END OF FILE */
+
+// Function to calculate the running average
+void calculate_running_average(float new_value, float *average, float *window, int *avgIndex) {
+    // Subtract the oldest value from the running sum
+    *average -= window[*avgIndex] / WINDOW_SIZE;
+
+    // Add the new value to the running sum
+    window[*avgIndex] = new_value;
+    *average += new_value / WINDOW_SIZE;
+
+    // Update the index to the next position in the window
+    *avgIndex = (*avgIndex + 1) % WINDOW_SIZE;
+}
+
+void snrTakeMostureReading(void) {
+	// Read raw ADC value
+	moisture_value = adc1_get_raw(SENSOR_PIN);
+
+	// Log moisture value
+	ESP_LOGI(SNR_TAG, "Moisture value: %ld", moisture_value);
+	
+	// Convert raw ADC value to calibrated voltage
+	moisture_voltage = esp_adc_cal_raw_to_voltage(moisture_value, adc_chars);
+	
+	// Log calibrated voltage
+	ESP_LOGI(SNR_TAG, "Calibrated voltage: %ld mV", moisture_voltage);
+	new_value = (float)moisture_voltage;
+
+	// Calculate the running average
+	calculate_running_average(new_value, &average_reading, window, &snrAvgIndex);
+
+	// Print the current running average
+	ESP_LOGI(SNR_TAG,"Running average: %.2f", average_reading);
+
+	// Calculate moisture percentage
+	moisture_percent = ((float)(average_reading - V_DRY) / (V_WET - V_DRY)) * 100.0;
+
+	// Log calibrated voltage and moisture percentage
+	ESP_LOGI(SNR_TAG, "Voltage: %.2f mV, Moisture: %.2f%% \n", average_reading, moisture_percent);
+}
+
+void snrTakeTemperatureReading(void) {
+	// tmpTemperature = DHT11_read().temperature;
+	// printf("Temperature is %ld Deg C \n", tmpTemperature);
+
+	// tmpHumidity = DHT11_read().humidity;
+	// printf("Humidity is %ld%% \n", tmpHumidity);
+	
+	// tmpCode = DHT11_read().status;
+	// printf("Status code is %ld \n", tmpCode);
+	printf("Temperature is %d \n", DHT11_read().temperature);
+    printf("Humidity is %d\n", DHT11_read().humidity);
+    printf("Status code is %d\n", DHT11_read().status);
+}
+/* [] END OF FILE */
 
