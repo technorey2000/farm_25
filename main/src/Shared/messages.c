@@ -3,6 +3,7 @@
 #include "Shared/messages.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "esp_mac.h"
 
 static char msg_tag[]="MSG";
 
@@ -75,7 +76,7 @@ void print_convertMsgToJSON(RTOS_message_t msg)
              sprintf(printMessage2,"\"data\":%ld,", msg.msgData);
             break;
         case MSG_DATA_FLOAT:
-            sprintf(printMessage2,"\"data\":%.2f,", (float)msg.msgData);
+            sprintf(printMessage2,"\"data\":%.2f,", *(float *)msg.msgDataPtr);
             break;
         case MSG_DATA_STR:      
             memset(printMessage6, 0, sizeof(printMessage6));

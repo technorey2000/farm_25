@@ -38,6 +38,9 @@ uint32_t sys_getMsgTimeStamp(void);
 #define BLE_INACTIVITY_TIME_MS (5 * ONE_MINUTE_IN_SEC * ONE_SECOND_IN_MS) 
 #define SYS_INACTIVITY_TIME_MS (5 * ONE_MINUTE_IN_SEC * ONE_SECOND_IN_MS) 
 
+#define SNR_BME280 1                    //If the BME280 sensor is being used                 
+#define SNR_DHT11 1                     //If the DHT11 sensor is being used
+
 //#define BROWNOUT_DETECT_OFF             //Disable brownout detection
 //#define BROWNOUT_OVERRIDE true          //Used to override the brownout test
 
@@ -1936,13 +1939,19 @@ typedef struct lox_queue_data
 //For DHT11 sensor
 #define DHT11_PIN GPIO_NUM_4 // GPIO4
 
-
 #define SM_SNR_STRING_MAX_ARRAY_CHARACTERS 150
 #define SNR_STRING_MAX_ARRAY_CHARACTERS 150
 #define SNR_MESSAGE_MAX_ARRAY_ELEMENTS  10
 #define SNR_STRING_MAX_ARRAY_LOG_ELEMENTS 10
 
 #define SNR_READ_MOISTURE_TIMEOUT 5000 //5 secounds
+
+//For BME280
+#define SDA_PIN GPIO_NUM_21
+#define SCL_PIN GPIO_NUM_22
+
+#define I2C_MASTER_ACK 0
+#define I2C_MASTER_NACK 1
 
 //External Queue Handles:	
 extern QueueHandle_t snrQueueHandle;
@@ -1954,12 +1963,18 @@ enum snr_cmd_type {
     SNR_CMD_PING                = 7001,     //echo message received back to sender
     SNR_CMD_STATUS              = 7002,     //Send back status to sender
 
-    SNR_CMD_RD_TEMPERATURE      = 7100,     //Read temperature
-    SNR_CMD_RD_HUMIDITY         = 7101,     //Read humidity
-    SNR_CMD_RD_TH_CODE          = 7102,     //Read status from temperature/humidity sensor
+    SNR_CMD_RD_DHT11_TEMP       = 7100,     //Read temperature from the DHT11 sensor
+    SNR_CMD_RD_DHT11_HUM        = 7101,     //Read humidity from the DHT11 sensor
+    SNR_CMD_RD_DHT11_CODE       = 7102,     //Read status from the DHT11 sensor
 
     SNR_CMD_RD_MOISTURE_VOLTAGE = 7200,     //Read Moisture voltage
     SNR_CMD_RD_MOISTURE_PERCENT = 7201,     //Read Moisture Percentage
+
+    SNR_CMD_RD_BME280_TEMP      = 7300,     //Read Temperature from the BME280 sensor
+    SNR_CMD_RD_BME280_HUM       = 7301,     //Read Humidity from the BME280 sensor
+    SNR_CMD_RD_BME280_P_HPA     = 7302,     //Read Pressure in hPa from the BME280 sensor
+    SNR_CMD_RD_BME280_P_PSI     = 7303,     //Read Pressure in psi from the BME280 sensor
+    SNR_CMD_RD_BME280_P_INHG    = 7304,     //Read Pressure in inhg from the BME280 sensor
 
     SNR_CMD_LOG1_TEST		    = 7800,		//Send information log to mobile device via BLE
     SNR_CMD_LOG2_TEST		    = 7801,		//Send error log to mobile device via BLE

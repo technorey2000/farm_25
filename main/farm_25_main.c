@@ -23,9 +23,6 @@
 #include "Task/sensorsTask.h"
 #include "Sync/syncTask.h"
 
-//#include "../components/dht/include/dht11.h"
-
-//static char tag[]="farm_25__main";
 
 //Task Prototypes
 void serialTask(void *param);

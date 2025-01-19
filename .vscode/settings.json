@@ -23,7 +23,8 @@
         "functional": "c",
         "mutex": "c",
         "regex": "c",
-        "tuple": "c"
+        "tuple": "c",
+        "bme280.h": "c"
     },
     "idf.flashType": "UART"
 }

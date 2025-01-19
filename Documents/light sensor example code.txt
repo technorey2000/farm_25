@@ -1,0 +1,105 @@
+/*
+ * This ESP32 code is created by esp32io.com
+ *
+ * This ESP32 code is released in the public domain
+ *
+ * For more detail (instruction and wiring diagram), visit https://esp32io.com/tutorials/esp32-light-sensor
+ */
+
+#define LIGHT_SENSOR_PIN 36 // ESP32 pin GIOP36 (ADC0)
+
+void setup() {
+  // initialize serial communication at 9600 bits per second:
+  Serial.begin(9600);
+
+  // set the ADC attenuation to 11 dB (up to ~3.3V input)
+  analogSetAttenuation(ADC_11db);
+}
+
+void loop() {
+  // reads the input on analog pin (value between 0 and 4095)
+  int analogValue = analogRead(LIGHT_SENSOR_PIN);
+
+  Serial.print("Analog Value = ");
+  Serial.print(analogValue);   // the raw analog reading
+
+  // We'll have a few threshholds, qualitatively determined
+  if (analogValue < 40) {
+    Serial.println(" => Dark");
+  } else if (analogValue < 800) {
+    Serial.println(" => Dim");
+  } else if (analogValue < 2000) {
+    Serial.println(" => Light");
+  } else if (analogValue < 3200) {
+    Serial.println(" => Bright");
+  } else {
+    Serial.println(" => Very bright");
+  }
+
+  delay(500);
+}
+
+
+
+-------------------------------------------------------------------
+using ADC2:
+can I use adc2?
+Yes, you can use ADC2 on the ESP32. However, there are some important considerations and limitations when using ADC2, especially if you plan to use Wi-Fi. ADC2 and Wi-Fi share some internal resources, so their usage can conflict.
+
+ADC2 Limitations:
+Wi-Fi Interference: When Wi-Fi is enabled, ADC2 cannot be used as it shares resources with the Wi-Fi driver.
+
+GPIO Pins: ADC2 uses different GPIO pins compared to ADC1. Make sure you select the appropriate GPIO pin for your sensor.
+
+----------------
+
+code:
+
+
+
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/adc.h"
+#include "esp_system.h"
+#include "esp_log.h"
+
+#define ADC2_CHANNEL ADC2_CHANNEL_0  // GPIO4 (ADC2 Channel 0)
+
+static const char *TAG = "LDR Example";
+
+void app_main(void) {
+    // Configure ADC
+    adc2_config_channel_atten(ADC2_CHANNEL, ADC_ATTEN_DB_0);  // Set attenuation (0dB for 0-1.1V range)
+
+    while (1) {
+        int adc_value = 0;
+        // Read the ADC value
+        if (adc2_get_raw(ADC2_CHANNEL, ADC_WIDTH_BIT_12, &adc_value) == ESP_OK) {
+            ESP_LOGI(TAG, "ADC Value: %d", adc_value);
+        } else {
+            ESP_LOGE(TAG, "ADC Reading failed");
+        }
+
+        // Delay for a short period before reading the value again
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
+    }
+}
+
+Explanation:
+Include Headers: Necessary headers for FreeRTOS, ADC, and logging are included.
+
+Define ADC2 Channel: The ADC2 channel is defined based on the GPIO pin used (GPIO4 in this case).
+
+Configure ADC:
+
+adc2_config_channel_atten(ADC2_CHANNEL, ADC_ATTEN_DB_0): Sets the attenuation to 0dB for a 0-1.1V input range.
+
+Read ADC Value: The ADC value is read using adc2_get_raw(ADC2_CHANNEL, ADC_WIDTH_BIT_12, &adc_value) 
+and logged to the Serial Monitor.
+
+Delay: A delay of 1 second is introduced between readings using vTaskDelay.
+
+
+
+

@@ -1,0 +1,455 @@
+Here's an example of how to use the BMP280 sensor with ESP-IDF to read temperature and pressure data:
+
+Prerequisites
+ESP32 Pico V2 development board
+
+BMP280 sensor module
+
+ESP-IDF installed and configured on your system
+
+Breadboard and jumper wires
+
+------------------------------------
+
+Circuit Connection
+Power Connection: Connect the VCC pin of the BMP280 to the 3.3V pin on the ESP32.
+
+Ground Connection: Connect the GND pin of the BMP280 to the GND pin on the ESP32.
+
+I2C Connection: Connect the SDA pin of the BMP280 to GPIO21 (SDA) on the ESP32.
+
+I2C Connection: Connect the SCL pin of the BMP280 to GPIO22 (SCL) on the ESP32.
+
+------------------------------
+Bosch Sensortec provides a BMP280 driver that you can use. You can find 
+the BMP280 driver on the Bosch Sensortec GitHub repository here.
+
+link to library needed:
+https://github.com/boschsensortec/BME280_SensorAPI
+https://github.com/boschsensortec/BME280_SensorAPI.git
+
+
+git clone https://github.com/BoschSensortec/BME280.git
+
+
+Organize Your Project:
+
+Create a components folder in your project directory.
+
+Move the BMP280_driver directory into the components folder.
+
+Include BMP280 Driver in Your Project:
+
+Add the necessary includes and configuration in your main.c file.
+
+
+
+------------------------------
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/i2c.h"
+#include "esp_err.h"
+#include "esp_log.h"
+#include "bmp280.h"
+
+#define I2C_MASTER_SCL_IO GPIO_NUM_22  // GPIO for I2C SCL
+#define I2C_MASTER_SDA_IO GPIO_NUM_21  // GPIO for I2C SDA
+#define I2C_MASTER_NUM I2C_NUM_0       // I2C port number for master dev
+#define I2C_MASTER_FREQ_HZ 100000      // I2C master clock frequency
+#define BMP280_ADDR 0x76               // I2C address of BMP280
+
+static const char *TAG = "BMP280 Example";
+
+static void i2c_master_init() {
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_MASTER_SDA_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_io_num = I2C_MASTER_SCL_IO,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,
+    };
+    ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_NUM, &conf));
+    ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0));
+}
+
+int8_t bmp280_i2c_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (dev_id << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (dev_id << 1) | I2C_MASTER_READ, true);
+    if (len > 1) {
+        i2c_master_read(cmd, data, len - 1, I2C_MASTER_ACK);
+    }
+    i2c_master_read_byte(cmd, data + len - 1, I2C_MASTER_NACK);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret == ESP_OK ? 0 : -1;
+}
+
+int8_t bmp280_i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (dev_id << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_write(cmd, data, len, true);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret == ESP_OK ? 0 : -1;
+}
+
+void bmp280_delay_ms(uint32_t period) {
+    vTaskDelay(period / portTICK_PERIOD_MS);
+}
+
+void bmp280_task(void *pvParameters) {
+    struct bmp280_dev bmp;
+    int8_t rslt;
+
+    bmp.dev_id = BMP280_ADDR;
+    bmp.intf = BMP280_I2C_INTF;
+    bmp.read = bmp280_i2c_read;
+    bmp.write = bmp280_i2c_write;
+    bmp.delay_ms = bmp280_delay_ms;
+
+    rslt = bmp280_init(&bmp);
+    if (rslt != BMP280_OK) {
+        ESP_LOGE(TAG, "Failed to initialize BMP280: %d", rslt);
+        vTaskDelete(NULL);
+    }
+
+    bmp280_set_sampling(&bmp, BMP280_MODE_NORMAL, BMP280_SAMPLING_X2, BMP280_SAMPLING_X16, BMP280_FILTER_OFF, BMP280_STANDBY_MS_1);
+
+    while (1) {
+        struct bmp280_uncomp_data ucomp_data;
+        int32_t temp32;
+        uint32_t pres32;
+        float temp, pres;
+
+        rslt = bmp280_get_uncomp_data(&ucomp_data, &bmp);
+        if (rslt == BMP280_OK) {
+            rslt = bmp280_get_comp_temp_32bit(&temp32, ucomp_data.uncomp_temp, &bmp);
+            rslt = bmp280_get_comp_pres_32bit(&pres32, ucomp_data.uncomp_press, &bmp);
+
+            temp = temp32 / 100.0;
+            pres = pres32 / 100.0;
+
+            ESP_LOGI(TAG, "Temperature: %.2f°C, Pressure: %.2f hPa", temp, pres);
+        } else {
+            ESP_LOGE(TAG, "Failed to read data from BMP280: %d", rslt);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
+    }
+}
+
+void app_main(void) {
+    i2c_master_init();
+    xTaskCreate(bmp280_task, "BMP280_Task", 2048, NULL, 5, NULL);
+}
+
+
+------------------------------------------------------------------------
+
+Software Identification
+Here’s an example of how to read the sensor's ID register using 
+ESP-IDF to determine whether you have a BME280 or BMP280:
+
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/i2c.h"
+#include "esp_err.h"
+#include "esp_log.h"
+#include "bmp280.h"
+
+#define I2C_MASTER_SCL_IO GPIO_NUM_22  // GPIO for I2C SCL
+#define I2C_MASTER_SDA_IO GPIO_NUM_21  // GPIO for I2C SDA
+#define I2C_MASTER_NUM I2C_NUM_0       // I2C port number for master dev
+#define I2C_MASTER_FREQ_HZ 100000      // I2C master clock frequency
+#define BMP280_ADDR 0x76               // I2C address of BMP280/BME280
+#define BMP280_REG_ID 0xD0 			   // Register address for sensor ID
+
+static const char *TAG = "Sensor ID Check";
+
+static void i2c_master_init() {
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_MASTER_SDA_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_io_num = I2C_MASTER_SCL_IO,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,
+    };
+    ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_NUM, &conf));
+    ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0));
+}
+
+void app_main(void) {
+    i2c_master_init();
+    
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    uint8_t sensor_id = 0;
+
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (BMP280_ADDR << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, BMP280_REG_ID, true);
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (BMP280_ADDR << 1) | I2C_MASTER_READ, true);
+    i2c_master_read_byte(cmd, &sensor_id, I2C_MASTER_NACK);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+
+    if (ret == ESP_OK) {
+        if (sensor_id == 0x58) {
+            ESP_LOGI(TAG, "BMP280 detected");
+        } else if (sensor_id == 0x60) {
+            ESP_LOGI(TAG, "BME280 detected");
+        } else {
+            ESP_LOGE(TAG, "Unknown sensor ID: 0x%x", sensor_id);
+        }
+    } else {
+        ESP_LOGE(TAG, "Failed to read sensor ID");
+    }
+}
+
+
+
+Explanation
+I2C Initialization: Configure the I2C interface for communication.
+
+Read Sensor ID: Read the sensor ID register and determine whether it’s a BMP280 (ID: 0x58) or a BME280 (ID: 0x60).
+
+Log the Result: Print the sensor ID to the Serial Monitor.
+
+By using this code, you can identify whether your board has a BMP280 or a BME280
+
+
+------------------------------------------------------------
+
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/i2c.h"
+#include "esp_err.h"
+#include "esp_log.h"
+#include "bme280.h"
+
+#define I2C_MASTER_SCL_IO GPIO_NUM_22  // GPIO for I2C SCL
+#define I2C_MASTER_SDA_IO GPIO_NUM_21  // GPIO for I2C SDA
+#define I2C_MASTER_NUM I2C_NUM_0       // I2C port number for master dev
+#define I2C_MASTER_FREQ_HZ 100000      // I2C master clock frequency
+#define BME280_ADDR 0x76               // I2C address of BME280
+
+static const char *TAG = "BME280 Example";
+
+static void i2c_master_init() {
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_MASTER_SDA_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_io_num = I2C_MASTER_SCL_IO,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,
+    };
+    ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_NUM, &conf));
+    ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0));
+}
+
+void bmp280_delay_ms(uint32_t period) {
+    vTaskDelay(period / portTICK_PERIOD_MS);
+}
+
+int8_t bmp280_i2c_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (dev_id << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (dev_id << 1) | I2C_MASTER_READ, true);
+    if (len > 1) {
+        i2c_master_read(cmd, data, len - 1, I2C_MASTER_ACK);
+    }
+    i2c_master_read_byte(cmd, data + len - 1, I2C_MASTER_NACK);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret == ESP_OK ? 0 : -1;
+}
+
+int8_t bmp280_i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (dev_id << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_write(cmd, data, len, true);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret == ESP_OK ? 0 : -1;
+}
+
+void bme280_task(void *pvParameters) {
+    struct bme280_dev bme;
+    int8_t rslt;
+
+    bme.dev_id = BME280_ADDR;
+    bme.intf = BME280_I2C_INTF;
+    bme.read = bmp280_i2c_read;
+    bme.write = bmp280_i2c_write;
+    bme.delay_ms = bmp280_delay_ms;
+
+    rslt = bme280_init(&bme);
+    if (rslt != BME280_OK) {
+        ESP_LOGE(TAG, "Failed to initialize BME280: %d", rslt);
+        vTaskDelete(NULL);
+    }
+
+    bme280_set_sensor_settings(BME280_OSR_TEMP_X1 | BME280_OSR_PRESS_X1 | BME280_OSR_HUM_X1, &bme);
+    bme280_set_sensor_mode(BME280_NORMAL_MODE, &bme);
+
+    while (1) {
+        struct bme280_data comp_data;
+        rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &bme);
+        if (rslt == BME280_OK) {
+            ESP_LOGI(TAG, "Temperature: %.2f°C, Pressure: %.2f hPa, Humidity: %.2f%%", 
+                     comp_data.temperature, 
+                     comp_data.pressure / 100.0, 
+                     comp_data.humidity);
+        } else {
+            ESP_LOGE(TAG, "Failed to read sensor data: %d", rslt);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
+    }
+}
+
+void app_main(void) {
+    i2c_master_init();
+    xTaskCreate(bme280_task, "BME280_Task", 2048, NULL, 5, NULL);
+}
+
+
+---------------------------------------------------------------
+
+#include <stdio.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/i2c.h"
+#include "esp_err.h"
+#include "esp_log.h"
+#include "bme280.h"
+
+#define I2C_MASTER_SCL_IO GPIO_NUM_22  // GPIO for I2C SCL
+#define I2C_MASTER_SDA_IO GPIO_NUM_21  // GPIO for I2C SDA
+#define I2C_MASTER_NUM I2C_NUM_0       // I2C port number for master dev
+#define I2C_MASTER_FREQ_HZ 100000      // I2C master clock frequency
+#define BME280_ADDR 0x76               // I2C address of BME280
+
+static const char *TAG = "BME280 Example";
+
+// Define a delay function that matches the expected signature
+void bme280_delay_ms(uint32_t period) {
+    vTaskDelay(period / portTICK_PERIOD_MS);  // Use FreeRTOS delay
+}
+
+int8_t bme280_i2c_read(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (dev_id << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (dev_id << 1) | I2C_MASTER_READ, true);
+    if (len > 1) {
+        i2c_master_read(cmd, data, len - 1, I2C_MASTER_ACK);
+    }
+    i2c_master_read_byte(cmd, data + len - 1, I2C_MASTER_NACK);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret == ESP_OK ? 0 : -1;
+}
+
+int8_t bme280_i2c_write(uint8_t dev_id, uint8_t reg_addr, uint8_t *data, uint16_t len) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (dev_id << 1) | I2C_MASTER_WRITE, true);
+    i2c_master_write_byte(cmd, reg_addr, true);
+    i2c_master_write(cmd, data, len, true);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(I2C_MASTER_NUM, cmd, 1000 / portTICK_PERIOD_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret == ESP_OK ? 0 : -1;
+}
+
+static void i2c_master_init() {
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_MASTER_SDA_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_io_num = I2C_MASTER_SCL_IO,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_MASTER_FREQ_HZ,
+    };
+    ESP_ERROR_CHECK(i2c_param_config(I2C_MASTER_NUM, &conf));
+    ESP_ERROR_CHECK(i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0, 0));
+}
+
+void bme280_task(void *pvParameters) {
+    struct bme280_dev bme;
+    int8_t rslt;
+
+    bme.dev_id = BME280_ADDR;
+    bme.intf = BME280_I2C_INTF;
+    bme.read = bme280_i2c_read;
+    bme.write = bme280_i2c_write;
+    bme.delay_ms = bme280_delay_ms;  // Assign the delay function
+
+    rslt = bme280_init(&bme);
+    if (rslt != BME280_OK) {
+        ESP_LOGE(TAG, "Failed to initialize BME280: %d", rslt);
+        vTaskDelete(NULL);
+    }
+
+    bme280_set_sensor_settings(BME280_OSR_TEMP_X1 | BME280_OSR_PRESS_X1 | BME280_OSR_HUM_X1, &bme);
+    bme280_set_sensor_mode(BME280_NORMAL_MODE, &bme);
+
+    while (1) {
+        struct bme280_data comp_data;
+        rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &bme);
+        if (rslt == BME280_OK) {
+            ESP_LOGI(TAG, "Temperature: %.2f°C, Pressure: %.2f hPa, Humidity: %.2f%%",
+                     comp_data.temperature,
+                     comp_data.pressure / 100.0,
+                     comp_data.humidity);
+        } else {
+            ESP_LOGE(TAG, "Failed to read sensor data: %d", rslt);
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));  // Delay for 1 second
+    }
+}
+
+void app_main(void) {
+    i2c_master_init();
+    xTaskCreate(bme280_task, "BME280_Task", 2048, NULL, 5, NULL);
+}
+
+--------------------------------------------------------------------------------
+
+example project:
+
+video:
+https://www.youtube.com/watch?v=Yf9oaoTTS_E
+
+repository:
+https://github.com/SIMS-IOT-Devices/FreeRTOS-ESP-IDF-I2C.git
+
+another example:
+https://www.youtube.com/watch?v=KDC4jwPCa5Y&pp=ygUUYm1lMjgwIGVzcDMyIGVzcC1pZGY%3D

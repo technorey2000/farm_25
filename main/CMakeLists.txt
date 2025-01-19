@@ -16,6 +16,7 @@ idf_component_register(SRCS "farm_25_main.c"
 "./src/Shared/spiffs_circular_queue.c"
 
 "./components/dht/dht11.c"
+"./components/bme280/bme280.c"
 
 
 INCLUDE_DIRS "." "./include"
