@@ -39,7 +39,7 @@ uint32_t sys_getMsgTimeStamp(void);
 #define SYS_INACTIVITY_TIME_MS (5 * ONE_MINUTE_IN_SEC * ONE_SECOND_IN_MS) 
 
 #define SNR_BME280 1                    //If the BME280 sensor is being used                 
-#define SNR_DHT11 1                     //If the DHT11 sensor is being used
+//#define SNR_DHT11 1                     //If the DHT11 sensor is being used
 
 //#define BROWNOUT_DETECT_OFF             //Disable brownout detection
 //#define BROWNOUT_OVERRIDE true          //Used to override the brownout test
@@ -1952,6 +1952,9 @@ typedef struct lox_queue_data
 
 #define I2C_MASTER_ACK 0
 #define I2C_MASTER_NACK 1
+
+//For 5516 Photoresistor Light Sensor Module
+#define LIGHT_SENSOR_PIN GPIO_NUM_25
 
 //External Queue Handles:	
 extern QueueHandle_t snrQueueHandle;

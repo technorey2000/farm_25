@@ -1,0 +1,148 @@
+
+Product information
+Technical Details
+Part Number LY170
+Item Weight 0.317 ounces
+Package Dimensions 4.8 x 3.11 x 0.31 inches
+Item model number LY170
+Is Discontinued By Manufacturer No
+Batteries Included? No
+Batteries Required? No
+
+Additional Information
+ASIN	B07K7JF3HX
+Customer Reviews	4.2 4.2 out of 5 stars    131 ratings
+4.2 out of 5 stars
+Best Sellers Rank	#711 in Single Board Computers (Computers & Accessories)
+Date First Available	November 6, 2018
+
+Product Description
+Specifications:
+2V to 6V operation
+“On” resistance: 70 Ohms @ 4.5V
+6ns break-before-make @ 4.5V
+Wide operating temperature range: -55C to 125C
+Analog signal input: C0-C15/16 channel
+Analog output: DIG
+Channel control: S0-S3
+
+Note:
+Since our company does not provide technical support, 
+the installation of electronic modules requires basic 
+knowledge and requires a certain electronic professional 
+foundation and hands-on ability. Please purchase carefully!
+Manual measurement, with small error. 
+Please check size in detail before purchase.
+Real colors may slightly differ from the pictures, 
+as it depends on specific monitor settings and light brightness.
+
+------------------------------------------------------------
+Circuit Diagram:
+Connect the CD74HC4067 Module:
+
+VCC to 3.3V on the ESP32
+
+GND to GND on the ESP32
+
+EN to GND (Enable pin is active low)
+
+S0, S1, S2, S3 to GPIO pins on the ESP32 (e.g., GPIO 14, 12, 13, 15)
+
+SIG to an analog pin on the ESP32 (e.g., GPIO 34)
+
+Connect the analog inputs (C0-C15) to your sensors or devices
+
+Connect the analog inputs (C0-C15) to your sensors or devices
+------------------------------------
+This code will loop through all 16 channels of the multiplexer, 
+reading the analog values from each channel and 
+printing them to the ESP32's serial output.
+
+#include <driver/gpio.h>
+#include <driver/i2c.h>
+#include <esp_log.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+#define EN_PIN  GPIO_NUM_2
+#define S0_PIN  GPIO_NUM_14
+#define S1_PIN  GPIO_NUM_12
+#define S2_PIN  GPIO_NUM_13
+#define S3_PIN  GPIO_NUM_15
+#define SIG_PIN GPIO_NUM_34
+
+void channel_select(uint8_t channel) {
+    gpio_set_level(S0_PIN, channel & 0x01);
+    gpio_set_level(S1_PIN, (channel >> 1) & 0x01);
+    gpio_set_level(S2_PIN, (channel >> 2) & 0x01);
+    gpio_set_level(S3_PIN, (channel >> 3) & 0x01);
+}
+
+void app_main() {
+    // Initialize GPIO pins
+    gpio_pad_select_gpio(EN_PIN);
+    gpio_set_direction(EN_PIN, GPIO_MODE_OUTPUT);
+    gpio_pad_select_gpio(S0_PIN);
+    gpio_set_direction(S0_PIN, GPIO_MODE_OUTPUT);
+    gpio_pad_select_gpio(S1_PIN);
+    gpio_set_direction(S1_PIN, GPIO_MODE_OUTPUT);
+    gpio_pad_select_gpio(S2_PIN);
+    gpio_set_direction(S2_PIN, GPIO_MODE_OUTPUT);
+    gpio_pad_select_gpio(S3_PIN);
+    gpio_set_direction(S3_PIN, GPIO_MODE_OUTPUT);
+    gpio_pad_select_gpio(SIG_PIN);
+    gpio_set_direction(SIG_PIN, GPIO_MODE_INPUT);
+
+    // Set EN pin low to enable the multiplexer
+    gpio_set_level(EN_PIN, 0);
+
+    for (uint8_t channel = 0; channel < 16; channel++) {
+        channel_select(channel);
+        ESP_LOGI("Channel", "Reading from channel %d", channel);
+        int val = adc1_get_raw(ADC1_CHANNEL_6); // Read the analog value
+        ESP_LOGI("Value", "Channel %d: %d", channel, val);
+        vTaskDelay(pdMS_TO_TICKS(500)); // Wait for 0.5 seconds
+    }
+
+    // Set EN pin high to disable the multiplexer
+    gpio_set_level(EN_PIN, 1);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------
+
+4.0 out of 5 stars Doesnt follow manufacturer’s truth table
+Reviewed in the United States on May 2, 2022
+Verified Purchase
+They work alright, they just have the truth table mixed up from manufacturers, this worked for me
+
+TruthTable = [
+#s0,s1,s2,s3 channel
+[0, 0, 0, 0], #0
+[1, 0, 0, 0], #1
+[0, 1, 0, 0], #2
+[1, 1, 0, 0], #3
+[0, 0, 0, 1], #4 MANUFACTURER 8
+[1, 0, 0, 1], #5 MANUFACTURER 9
+[0, 1, 0, 1], #6 MANUFACTURER 10
+[1, 1, 0, 1], #7 MANUFACTURER 7
+[0, 0, 1, 0], #8 MANUFACTURER 4
+[1, 0, 1, 0], #9 MANUFACTURER 5
+[0, 1, 1, 0], #10 MANUFACTURER 6
+[1, 1, 1, 0], #11 MANUFACTURER 7
+[0, 0, 1, 1], #12
+[1, 0, 1, 1], #13
+[0, 1, 1, 1], #14
+[1, 1, 1, 1]] #15

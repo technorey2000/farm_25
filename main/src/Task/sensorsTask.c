@@ -11,6 +11,7 @@
 #include "driver/adc.h"
 
 #include "driver/i2c.h"
+#include <driver/gpio.h>
 
 #include "Shared/common.h"
 #include "Task/sensorsTask.h"
@@ -18,7 +19,10 @@
 #include "Shared/cJSON.h"
 #include "Shared/messages.h"
 
+#ifdef SNR_DHT11
 #include "../components/dht/include/dht11.h"
+#endif
+
 #include "./components/bme280/include/bme280.h"
 
 //Local Parameters:
@@ -33,10 +37,17 @@ char snrTmpStr[SNR_STRING_MAX_ARRAY_CHARACTERS];
 
 esp_adc_cal_characteristics_t *adc_chars;
 
-//For Temperature/humidity sensor
+
+//For 5516 Photoresistor Light Sensor Module
+bool lightState = false;
+
+
+//For DH11 Temperature/humidity sensor
+#ifdef SNR_DHT11
 uint32_t tmpTemperature = 0;
 uint32_t tmpHumidity = 0;
 uint32_t tmpCode = 0;
+#endif  //SNR_DHT11
 
 //For moisture sensor
 uint32_t moisture_value = 0;
@@ -52,6 +63,7 @@ uint32_t currentTime = 0;
 uint32_t snrMositureTimeout = 0;
 
 //For BME280
+#ifdef SNR_BME280
 s32 com_rslt;
 s32 v_uncomp_pressure_s32;
 s32 v_uncomp_temperature_s32;
@@ -65,6 +77,7 @@ float tmpFloatBH = 0.0;
 char temperature[12];
 char pressure[20];
 char humidity[10];
+#endif  //SNR_BME280
 
 //Local Function Prototypes:
 void snrLog(char * strPtr, bool forced, bool printTag);
@@ -76,11 +89,19 @@ void snrLogE(char * strPtr);
 void snrSendMessage(uint8_t dstAddr, uint8_t msgType, uint16_t msgCmd, uint8_t * msgDataPtr, uint32_t msgData, uint32_t msgDataLen);
 void calculate_running_average(float new_value, float *average, float *window, uint32_t *index);
 
-//For DTH11
+//For the 5516 Photoresistor Light Sensor Module
+bool snrTake5516LightReading(void);
+
+//For moisture sensor
 void snrTakeMostureReading(void);
+
+//For DTH11
+#ifdef SNR_DHT11
 void snrTakeDht11TemperatureReading(void);
+#endif //SNR_DHT11
 
 //For BME280
+#ifdef SNR_BME280
 void i2c_master_init();
 s8 BME280_I2C_bus_write(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
 s8 BME280_I2C_bus_read(u8 dev_addr, u8 reg_addr, u8 *reg_data, u8 cnt);
@@ -91,7 +112,10 @@ struct bme280_t bme280 = {
     .bus_write = BME280_I2C_bus_write,
     .bus_read = BME280_I2C_bus_read,
     .dev_addr = BME280_I2C_ADDRESS1,
-    .delay_msec = BME280_delay_msek};
+    .delay_msec = BME280_delay_msek
+    };
+
+#endif  //SNR_BME280
 
 //External Functions:
 
@@ -100,7 +124,6 @@ struct bme280_t bme280 = {
 void snrTaskApp(void)
 {
     
-	//DHT11_init(GPIO_NUM_4);
     while(1)
     {
         if (xQueueReceive(snrQueueHandle, &snrRxMessage, 10))
@@ -125,7 +148,14 @@ void snrTaskApp(void)
 					adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
 					esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
 
+                    //For 5516 Photoresistor Light Sensor Module
+                    gpio_reset_pin(LIGHT_SENSOR_PIN);
+                    gpio_set_direction(LIGHT_SENSOR_PIN, GPIO_MODE_INPUT);
+
+#ifdef SNR_DHT11
 					DHT11_init(GPIO_NUM_4);
+#endif  //SNR_DHT11
+
 #ifdef SNR_BME280
                     // Initialize BME280 sensor and set internal parameters
                     i2c_master_init();
@@ -154,6 +184,7 @@ void snrTaskApp(void)
 					//TBD
 					break;
 
+#ifdef SNR_DHT11
 				case SNR_CMD_RD_DHT11_TEMP:
 					tmpTemperature = DHT11_read().temperature;
 					printf("Temperature is %ld Deg C \n", tmpTemperature);
@@ -171,6 +202,7 @@ void snrTaskApp(void)
 					printf("Status code is %ld \n", tmpCode);
 					snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_32, snrRxMessage.msgCmd, NULL, tmpCode, MSG_DATA_32_LEN);
 					break;
+#endif  //SNR_DHT11                    
 
 				case SNR_CMD_RD_MOISTURE_VOLTAGE:
 					printf("Voltage: %.2f", average_reading);
@@ -245,6 +277,7 @@ void snrTaskApp(void)
 					snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_FLOAT, snrRxMessage.msgCmd, (uint8_t *)&tmpFloatBP, MSG_DATA_0 ,sizeof(tmpFloatBP));
 					break;
 #endif //SNR_BME280
+
                 case SNR_CMD_LOG1_TEST:
                     snrLogI("This is an information message from the snr module!");
                     break;    	
@@ -262,8 +295,18 @@ void snrTaskApp(void)
 		currentTime = sys_getMsgTimeStamp();
 		if ((currentTime - snrMositureTimeout) > SNR_READ_MOISTURE_TIMEOUT) {
 			snrTakeMostureReading();
+
+#ifdef SNR_DHT11            
 			snrTakeDht11TemperatureReading();
+#endif//SNR_DHT11
+
 			snrMositureTimeout = sys_getMsgTimeStamp();
+
+            if (snrTake5516LightReading()){
+                printf("No light has been detected!");
+            } else {
+                printf("Light has been detected!");
+            }
 		}
 
     }
@@ -459,6 +502,13 @@ void snrTakeMostureReading(void) {
 	ESP_LOGI(SNR_TAG, "Voltage: %.2f mV, Moisture: %.2f%% \n", average_reading, moisture_percent);
 }
 
+//For 5516 Photoresistor Light Sensor Module
+bool snrTake5516LightReading(void){
+    return gpio_get_level(LIGHT_SENSOR_PIN); // Read the digital value
+}
+
+
+#ifdef SNR_DHT11
 void snrTakeDht11TemperatureReading(void) {
 	// tmpTemperature = DHT11_read().temperature;
 	// printf("Temperature is %ld Deg C \n", tmpTemperature);
@@ -472,8 +522,10 @@ void snrTakeDht11TemperatureReading(void) {
     printf("Humidity is %d\n", DHT11_read().humidity);
     printf("Status code is %d\n", DHT11_read().status);
 }
+#endif//SNR_DHT11
 
-// Initialize I2C communication parameters
+#ifdef SNR_BME280
+// Initialize I2C communication parameters for BME280
 void i2c_master_init()
 {
 	i2c_config_t i2c_config = {
@@ -558,5 +610,8 @@ void BME280_delay_msek(u32 msek)
 {
 	vTaskDelay(msek / portTICK_PERIOD_MS);
 }
+#endif  //SNR_BME280
+
+
 /* [] END OF FILE */
 
