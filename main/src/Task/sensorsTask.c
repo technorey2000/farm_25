@@ -123,7 +123,8 @@ struct bme280_t bme280 = {
 /// @param  None
 void snrTaskApp(void)
 {
-    
+    static bool snrStartModule = false;
+    ESP_LOGI(SNR_TAG, "Sensor task is running");
     while(1)
     {
         if (xQueueReceive(snrQueueHandle, &snrRxMessage, 10))
@@ -177,11 +178,20 @@ void snrTaskApp(void)
                     snrStatus = SNR_INIT_COMPLETE;
                     snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_8, SNR_CMD_INIT, NULL, snrStatus, MSG_DATA_8_LEN);
                     break;
+
 				case SNR_CMD_PING:
                     snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_8, SNR_CMD_PING, NULL, SNR_PING_RECEIVED, MSG_DATA_8_LEN);
 					break;
+
 				case SNR_CMD_STATUS:
 					//TBD
+					break;
+
+				case SNR_CMD_START:
+					uint8_t snrCmdStartStatus = SNR_RETURN_GOOD;
+                    snrSendMessage(snrRxMessage.srcAddr, MSG_DATA_8, snrRxMessage.msgCmd, NULL, snrCmdStartStatus, MSG_DATA_8_LEN);
+                    ESP_LOGI(SNR_TAG, "Sensor module started");
+                    snrStartModule = true;
 					break;
 
 #ifdef SNR_DHT11
@@ -292,22 +302,25 @@ void snrTaskApp(void)
 
         }
 
-		currentTime = sys_getMsgTimeStamp();
-		if ((currentTime - snrMositureTimeout) > SNR_READ_MOISTURE_TIMEOUT) {
-			snrTakeMostureReading();
+        if (snrStartModule) {
+            currentTime = sys_getMsgTimeStamp();
+            if ((currentTime - snrMositureTimeout) > SNR_READ_MOISTURE_TIMEOUT) {
+                snrTakeMostureReading();
 
 #ifdef SNR_DHT11            
-			snrTakeDht11TemperatureReading();
-#endif//SNR_DHT11
+                snrTakeDht11TemperatureReading();
+ #endif//SNR_DHT11
 
-			snrMositureTimeout = sys_getMsgTimeStamp();
+                snrMositureTimeout = sys_getMsgTimeStamp();
 
-            if (snrTake5516LightReading()){
-                printf("No light has been detected!");
-            } else {
-                printf("Light has been detected!");
-            }
-		}
+                if (snrTake5516LightReading()){
+                    printf("No light has been detected!\r\n");
+                } else {
+                    printf("Light has been detected!\r\n");
+                }
+            }            
+        }
+
 
     }
  

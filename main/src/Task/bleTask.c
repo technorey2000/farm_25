@@ -421,6 +421,8 @@ void bleTaskApp(void)
     char wifiConnNotifyBuff[MAX_MTU_SIZE] = {0};
     uint16_t tmpLength;
 
+    ESP_LOGI(BLE_TAG, "BLE task is running");
+
     while(1)
     {
         if (xQueueReceive(bleQueueHandle, &bleRxMessage, BLE_MESSAGE_WAIT_DELAY_MS))

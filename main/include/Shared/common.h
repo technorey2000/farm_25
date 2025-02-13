@@ -71,6 +71,7 @@ extern QueueHandle_t sysControlQueueHandle;
 extern QueueHandle_t dispatcherQueueHandle;
 extern QueueHandle_t strgQueueHandle;
 extern QueueHandle_t bleQueueHandle;
+extern QueueHandle_t wifiQueueHandle;
 
 extern QueueHandle_t eventQueueHandle;
 extern QueueHandle_t logQueueHandle;
@@ -174,6 +175,8 @@ enum system_wakeup_reasons {
 #define DISP_STRING_MAX_ARRAY_CHARACTERS 	150 
 #define SER_STRING_MAX_ARRAY_CHARACTERS 	150 
 #define SYS_STRING_MAX_ARRAY_CHARACTERS 	150
+#define BLE_STRING_MAX_ARRAY_CHARACTERS     150
+#define WIFI_STRING_MAX_ARRAY_CHARACTERS    250
 
 #define MAX_ADV_SERIAL_NUMBER_LEN           30
 #define MAX_HW_REV_LEN						10
@@ -181,6 +184,9 @@ enum system_wakeup_reasons {
 #define MESSAGE_MAX_ARRAY_ELEMENTS			10
 #define SER_MESSAGE_MAX_ARRAY_ELEMENTS	    10
 #define SYS_MESSAGE_MAX_ARRAY_ELEMENTS	    10
+#define STRG_MESSAGE_MAX_ARRAY_ELEMENTS	    10
+#define WIFI_MESSAGE_MAX_ARRAY_ELEMENTS	    10
+#define BLE_MESSAGE_MAX_ARRAY_ELEMENTS	    10
 
 #define MESSAGE_MAX_ARRAY_BYTES		sizeof(RTOS_message_t)
 #define MSG_DATA_POINTER_ONLY	0
@@ -362,8 +368,9 @@ typedef struct sys_begin_complete
   uint8_t is_SnReadInNvs    : 1;    //Was the currently stored Serial Number loaded into the NVS data structure?
   uint8_t is_SnReadInBLE    : 1;    //Was the currently stored Serial Number loaded into the BLE module?
   uint8_t is_BleStarted     : 1;    //Is the BLE module started?
+  uint8_t is_WifiStarted    : 1;    //Is the wifi module started?
   uint8_t is_SnrStarted     : 1;    //Is the snr module started?
-  uint8_t unused    		: 3;
+  uint8_t unused    		: 2;
 
   uint8_t unused1    		: 7;
   uint8_t is_SysBeginDone   : 1;    //System Begin complete?
@@ -374,8 +381,9 @@ typedef struct sys_begin_result
   uint8_t snInNvs           : 1;    //Was loading the Serial Number into the NVS data structure successful?
   uint8_t snInBLE           : 1;    //Was loading the Serial Number into the BLE module successful?
   uint8_t bleStartDone      : 1;    //Is the BLE module started successfully?
+  uint8_t wifiStartDone     : 1;    //Is the wifi module started successfully?
   uint8_t snrStartDone      : 1;    //Is the snr module started successfully?
-  uint8_t uUnused   		: 5;
+  uint8_t uUnused   		: 4;
 
   uint8_t Unused1   		: 7;  
   uint8_t systemBegin       : 1;    //System has been initalized
@@ -714,7 +722,6 @@ enum serial_response {
 #define GATTS_TABLE_TAG "SEC_GATTS_DEMO"
 
 #define SM_BLE_STRING_MAX_ARRAY_CHARACTERS 150
-#define BLE_STRING_MAX_ARRAY_CHARACTERS 150
 #define BLE_MESSAGE_MAX_ARRAY_ELEMENTS  10
 
 #define BLE_DEVICE_PREFIX   "OP"
@@ -1007,11 +1014,11 @@ typedef struct ble_lat_long_send
 extern RTC_NOINIT_ATTR uint32_t otaSignature;
 
 extern RTC_NOINIT_ATTR char wifiSwUrl[SOFTWARE_URL_MAX_CHARACTERS];
-extern RTC_NOINIT_ATTR uint8_t otaSsid[GATTS_CHAR_SSID_LEN_MAX];
-extern RTC_NOINIT_ATTR uint8_t otaPassword[GATTS_CHAR_PWD_LEN_MAX];
-extern RTC_NOINIT_ATTR uint8_t otaCount;
-extern RTC_NOINIT_ATTR uint32_t otaCountSig;
-extern RTC_NOINIT_ATTR char otaLastVersion[SOFTWARE_VERSION_MAX_CHARACTERS];
+//extern RTC_NOINIT_ATTR uint8_t otaSsid[GATTS_CHAR_SSID_LEN_MAX];
+//extern RTC_NOINIT_ATTR uint8_t otaPassword[GATTS_CHAR_PWD_LEN_MAX];
+//extern RTC_NOINIT_ATTR uint8_t otaCount;
+//extern RTC_NOINIT_ATTR uint32_t otaCountSig;
+//extern RTC_NOINIT_ATTR char otaLastVersion[SOFTWARE_VERSION_MAX_CHARACTERS];
 
 
 //static char wifiSwUrl[SOFTWARE_URL_MAX_CHARACTERS] = {0};
@@ -1022,6 +1029,7 @@ typedef struct device_data
     uint16_t    deviceDataStructId;  //To identify this structure. Use "DEVICE_DATA_STRUCT_ID" from the enum structure_ids.
     uint8_t     providerId;
     uint8_t     locationId;
+    uint8_t     wifi_retries;
     char        deviceToken[DEVICE_ACCESS_TOKEN_MAX_CHARACTERS];
     char        loxId[LOX_ID_MAX_LEN];
     char        url[BASE_URL_MAX_LEN];
@@ -1077,6 +1085,15 @@ typedef struct scale_config_data
 
 #define CORRUPT_DATA_ERROR 400
 
+#define WIFI_CONNECTED_BIT BIT0
+#define WIFI_FAIL_BIT      BIT1
+
+//RTC time set
+#define BLE_GET_TIME_MIN   1684944367   //Wed 24 May 2023 12:06:07
+#define BLE_GET_TIME_MAX   2347733167   //Tue 24 May 2044 16:06:07
+#define SEC_TO_MSEC_MULTIPLYER 1000
+#define MSEC_TO_USEC_MULTIPLYER 1000
+
 //extern RTC_NOINIT_ATTR uint32_t otaSignature;
 
 ///	WIFI Characteristics structure
@@ -1090,6 +1107,8 @@ typedef struct wifi_charc_data
     uint8_t  loxId[LOX_ID_MAX_LEN];
     uint8_t providerId;
     uint8_t locationId;
+    uint8_t wifi_retries;
+
 } __attribute__((__packed__))  wifi_charc_data_t;
 
 typedef enum
@@ -1128,6 +1147,7 @@ enum wifi_cmd_type {
     WIFI_CMD_INIT            	= 6001,    	//intialize task
     WIFI_CMD_PING            	= 6002,    	//echo message received back to sender
     WIFI_CMD_STATUS          	= 6003,    	//Send back status to sender
+    WIFI_CMD_START              = 6004,     //Start wifi module
 
     WIFI_CMD_RD_SSID            = 6010,     //Get SSID stored
     WIFI_CMD_RD_PWD             = 6011,     //Get Password stored
@@ -1150,6 +1170,8 @@ enum wifi_cmd_type {
 
     WIFI_CMD_AWS_INIT			= 6040,		//AWS Init
     WIFI_CMD_AWS_CONNECT        = 6041,     //AWS Connect
+
+    WIFI_CMD_SET_RTC_TIME       = 6042,     //Set the real time clock using the time received
 
     WIFI_CMD_PROVISION			= 6060,		//Provision unit  
 
@@ -1490,6 +1512,7 @@ typedef enum
 #define SER_STRING_MAX_ARRAY_LOG_ELEMENTS   10
 #define STRG_STRING_MAX_ARRAY_LOG_ELEMENTS  10
 #define SYS_STRING_MAX_ARRAY_LOG_ELEMENTS   10
+#define WIFI_STRING_MAX_ARRAY_LOG_ELEMENTS  10
 
 #define STRG_MESSAGE_MAX_ARRAY_ELEMENTS	    10
 #define STRG_STRING_MAX_ARRAY_CHARACTERS 150
@@ -1965,6 +1988,7 @@ enum snr_cmd_type {
     SNR_CMD_INIT                = 7000,     //intialize task
     SNR_CMD_PING                = 7001,     //echo message received back to sender
     SNR_CMD_STATUS              = 7002,     //Send back status to sender
+    SNR_CMD_START               = 7003,     //Start sensor module
 
     SNR_CMD_RD_DHT11_TEMP       = 7100,     //Read temperature from the DHT11 sensor
     SNR_CMD_RD_DHT11_HUM        = 7101,     //Read humidity from the DHT11 sensor
@@ -1988,7 +2012,8 @@ enum snr_status {
     SNR_INIT_COMPLETE 		= 0,
     SNR_INIT_ERROR    		= 1,
     SNR_STATUS_GOOD   		= 2,
-    SNR_STATUS_FAILURE		= 3
+    SNR_STATUS_FAILURE		= 3,
+    SNR_RETURN_GOOD         = 4,
 };  
 
 enum snr_ping_resp {

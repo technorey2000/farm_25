@@ -202,7 +202,7 @@ bool sysProcessSmSysInit(sys_init_complete_t * sysInitComplete, sys_init_result_
                     if(sysInitResult->bleInit)
                     {
                         ESP_LOGI(SM_TAG,"Initialize WIFI");
-                        //sysSendMessage(MSG_ADDR_WIFI, MSG_DATA_0, WIFI_CMD_INIT,  NULL, MSG_DATA_COMMAND_ONLY, MSG_DATA_0_LEN);
+                        sysSendMessage(MSG_ADDR_WIFI, MSG_DATA_0, WIFI_CMD_INIT,  NULL, MSG_DATA_COMMAND_ONLY, MSG_DATA_0_LEN);
                         smSysInitState = SCTL_SM1_ST40;
                     }
                     else
@@ -214,8 +214,8 @@ bool sysProcessSmSysInit(sys_init_complete_t * sysInitComplete, sys_init_result_
                 break;
 
             case SCTL_SM1_ST40:
-                sysInitComplete->is_WifiDone = true;    
-                sysInitResult->wifiInit = true;        
+                //sysInitComplete->is_WifiDone = true;    
+                //sysInitResult->wifiInit = true;        
 
                 if (sysInitComplete->is_WifiDone)
                 {
@@ -247,7 +247,6 @@ bool sysProcessSmSysInit(sys_init_complete_t * sysInitComplete, sys_init_result_
                     }
                 }
                 break;
-
 
             case  SCTL_SM1_ST98:
                 sysInitComplete->start_SM = false;
@@ -345,19 +344,47 @@ bool sysProcessSmSysBegin(sys_begin_complete_t * beginComplete, sys_begin_result
                 if (beginComplete->is_BleStarted)
                 {
                     if (beginResult->bleStartDone){
-                        smSysBeginState = SCTL_SM2_ST98;   
+                        //Start sensor module
+                        sysSendMessage(MSG_ADDR_SNR,MSG_DATA_0,SNR_CMD_START,NULL,MSG_DATA_COMMAND_ONLY,MSG_DATA_0_LEN);
+                        smSysBeginState = SCTL_SM2_ST40;   
                     }else{
                         ESP_LOGE(SM_TAG,"BLE Adv Init Failed!");
                         smSysBeginState = SCTL_SM2_ST99;   
                     }
                 }
-                break;    
+                break;  
+
+            case SCTL_SM2_ST40:
+                if (beginComplete->is_SnrStarted)
+                {
+                    if(beginResult->snrStartDone){   
+                        //Start wifi module
+                        ESP_LOGI(SM_TAG, "Send start command to wifi module");
+                        sysSendMessage(MSG_ADDR_WIFI,MSG_DATA_0,WIFI_CMD_START,NULL,MSG_DATA_COMMAND_ONLY,MSG_DATA_0_LEN);                   
+                        smSysBeginState = SCTL_SM2_ST50;
+                    }else{
+                        ESP_LOGE(SM_TAG,"Sensor start Failed");
+                        smSysBeginState = SCTL_SM2_ST99;   //Failure - End state machine
+                    }
+                }
+                break;                
+
+            case SCTL_SM2_ST50:
+                if (beginComplete->is_WifiStarted)
+                {
+                    if(beginResult->wifiStartDone){                      
+                        smSysBeginState = SCTL_SM2_ST98;
+                    }else{
+                        ESP_LOGE(SM_TAG,"Wifi start Failed");
+                        smSysBeginState = SCTL_SM2_ST99;   //Failure - End state machine
+                    }
+                }
+                break;                
 
             case SCTL_SM2_ST98:
                 {
                     beginComplete->is_SysBeginDone = true;
                     beginResult->systemBegin = true;
-
                     beginComplete->start_SM = false;
                     smSysBeginState = SCTL_SM2_ST00;
                     ESP_LOGI(SM_TAG,"sysProcessSmSysBegin - Pass and Complete");

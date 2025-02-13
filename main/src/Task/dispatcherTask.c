@@ -31,7 +31,7 @@ static char disp_tag[]="DISP";
 /// @param  None
 void dispatcherTaskApp(void)
 {
-	ESP_LOGI(disp_tag, "dispatcher is active");
+	ESP_LOGI(disp_tag, "dispatcher is running");
     while(1)
     {
         if (xQueueReceive(dispatcherQueueHandle, &dispatcherRxMessage, portMAX_DELAY))
@@ -63,6 +63,11 @@ void dispatcherTaskApp(void)
 				case MSG_ADDR_SNR:
 					dispatcherTxMessage = dispatcherRxMessage;
 					xQueueSend(snrQueueHandle,&dispatcherTxMessage,0);
+					break;
+
+				case MSG_ADDR_WIFI:
+					dispatcherTxMessage = dispatcherRxMessage;
+					xQueueSend(wifiQueueHandle,&dispatcherTxMessage,0);
 					break;
 			
 				case MSG_ADDR_DSPR:

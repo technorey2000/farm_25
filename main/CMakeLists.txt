@@ -8,6 +8,7 @@ idf_component_register(SRCS "farm_25_main.c"
 "./src/Task/bleTask.c"
 "./src/Task/strgTask.c"
 "./src/Task/sensorsTask.c"
+"./src/Task/wifiTask.c"
 
 "./src/Sync/syncTask.c"
 

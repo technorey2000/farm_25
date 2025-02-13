@@ -54,7 +54,7 @@ void serProcessSleepCmd(void);
 
 void serialTaskApp(void)
 {
-    ESP_LOGI(SER_TAG, "Serial Task running");
+    ESP_LOGI(SER_TAG, "Serial Task is running");
     while (1) 
     {
         

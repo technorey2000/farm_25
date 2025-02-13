@@ -39,6 +39,8 @@ void sysTestStateMachine(uint16_t stateMachineId);
 bool bleProcessResult(char * msgString);
 bool bleProcessSnResult(char * msgString);
 bool bleStartProcessResult(char * msgString);
+bool wifiStartProcessResult(char * msgString);
+bool snrStartProcessResult(char * msgString);
 
 void sysLog(char * strPtr, bool forced, bool printTag);
 void sysLogIF(char * strPtr);
@@ -107,7 +109,7 @@ void sysStartSystem(void)
 /// @param  None
 void sysControlTaskApp(void)
 {
-    ESP_LOGI(SYS_TAG, "Serial Task running");
+    ESP_LOGI(SYS_TAG, "System control Task is running");
     //gpio_config_t io_conf;
     while(!systemReadyToStart)
     {
@@ -344,6 +346,17 @@ void sctl_processSctlResponseMsg(void)
             if (sctl_Pm_sysCtrlRxMsg.msgData == SNR_INIT_COMPLETE){sysInitResult.snrInit = true;}
             sysInitComplete.is_SnrDone = true;
             break;	
+
+        case WIFI_CMD_START:
+            sysBeginResult.wifiStartDone    = wifiStartProcessResult("Wifi Module Started");
+            sysBeginComplete.is_WifiStarted = true;
+            break;
+
+        case SNR_CMD_START:
+            sysBeginResult.snrStartDone    = snrStartProcessResult("Sensor Module Started");
+            sysBeginComplete.is_SnrStarted = true;
+            break;
+
 
         default:;
     }
@@ -843,14 +856,46 @@ bool bleProcessResult(char * msgString)
         ESP_LOGE(SYS_TAG,"%s",sctl_TmpStr);
     }
 
-    //sysSendMessage(MSG_ADDR_LED, MSG_DATA_8, LED_CMD_OFF, NULL, BLE_LED_REF, MSG_DATA_8_LEN);
-
     return (false);
 }
 
 bool bleStartProcessResult(char * msgString)
 {
     if (sctl_Pm_sysCtrlRxMsg.msgData == BLE_RETURN_GOOD)
+    {
+
+        sprintf(sctl_TmpStr, "%s Passed, msg ID:%lu, TS:%lu\r\n", msgString, (ulong)sctl_Pm_sysCtrlRxMsg.msgRef, (ulong)sctl_Pm_sysCtrlRxMsg.msgTimeStamp);
+        ESP_LOGI(SYS_TAG,"%s",sctl_TmpStr);        
+        return (true);
+    }
+    else
+    {
+        sprintf(sctl_TmpStr, "%s Error!, msg ID:%lu, TS:%lu\r\n", msgString, (ulong)sctl_Pm_sysCtrlRxMsg.msgRef, (ulong)sctl_Pm_sysCtrlRxMsg.msgTimeStamp);
+        ESP_LOGE(SYS_TAG,"%s",sctl_TmpStr);
+    }
+    return (false);
+}
+
+bool wifiStartProcessResult(char * msgString)
+{
+    if (sctl_Pm_sysCtrlRxMsg.msgData == WIFI_RETURN_GOOD)
+    {
+
+        sprintf(sctl_TmpStr, "%s Passed, msg ID:%lu, TS:%lu\r\n", msgString, (ulong)sctl_Pm_sysCtrlRxMsg.msgRef, (ulong)sctl_Pm_sysCtrlRxMsg.msgTimeStamp);
+        ESP_LOGI(SYS_TAG,"%s",sctl_TmpStr);        
+        return (true);
+    }
+    else
+    {
+        sprintf(sctl_TmpStr, "%s Error!, msg ID:%lu, TS:%lu\r\n", msgString, (ulong)sctl_Pm_sysCtrlRxMsg.msgRef, (ulong)sctl_Pm_sysCtrlRxMsg.msgTimeStamp);
+        ESP_LOGE(SYS_TAG,"%s",sctl_TmpStr);
+    }
+    return (false);
+}
+
+bool snrStartProcessResult(char * msgString)
+{
+    if (sctl_Pm_sysCtrlRxMsg.msgData == SNR_RETURN_GOOD)
     {
 
         sprintf(sctl_TmpStr, "%s Passed, msg ID:%lu, TS:%lu\r\n", msgString, (ulong)sctl_Pm_sysCtrlRxMsg.msgRef, (ulong)sctl_Pm_sysCtrlRxMsg.msgTimeStamp);

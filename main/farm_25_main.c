@@ -21,6 +21,7 @@
 #include "Task/strgTask.h"
 #include "Task/bleTask.h"
 #include "Task/sensorsTask.h"
+#include "Task/wifiTask.h"
 #include "Sync/syncTask.h"
 
 
@@ -31,6 +32,7 @@ void dispatcherTask(void *param);
 void strgTask(void *param);
 void bleTask(void *param);
 void snrTask(void *param);
+void wifiTask(void *param);
 
 static uint32_t systemTimeStamp_ms = 0;
 static void sync_timer_callback(void* arg);
@@ -42,6 +44,7 @@ QueueHandle_t dispatcherQueueHandle;
 QueueHandle_t strgQueueHandle;
 QueueHandle_t bleQueueHandle;
 QueueHandle_t snrQueueHandle;
+QueueHandle_t wifiQueueHandle;
 
 //Event Queue Handler
 QueueHandle_t eventQueueHandle;
@@ -56,28 +59,9 @@ BaseType_t dispatcherTaskHandle;
 BaseType_t strgTaskHandle;
 BaseType_t bleTaskHandle;
 BaseType_t snrTaskHandle;
-
-RTC_NOINIT_ATTR uint32_t otaSignature;
-RTC_NOINIT_ATTR char wifiSwUrl[SOFTWARE_URL_MAX_CHARACTERS];
-
-RTC_NOINIT_ATTR uint8_t otaSsid[GATTS_CHAR_SSID_LEN_MAX];
-RTC_NOINIT_ATTR uint8_t otaPassword[GATTS_CHAR_PWD_LEN_MAX];
-
-RTC_NOINIT_ATTR uint8_t otaCount = 0;
-RTC_NOINIT_ATTR char otaLastVersion[SOFTWARE_VERSION_MAX_CHARACTERS];
-RTC_NOINIT_ATTR uint32_t otaCountSig;
-
-//static const char *TAG = "Moisture Sensor Calibration";
+BaseType_t wifiTaskHandle;
 
 int app_main() {
-  // DHT11_init(GPIO_NUM_4);
-
-  // while(1) {
-  //     printf("Temperature is %d \n", DHT11_read().temperature);
-  //     printf("Humidity is %d\n", DHT11_read().humidity);
-  //     printf("Status code is %d\n", DHT11_read().status);
-  //     vTaskDelay(pdMS_TO_TICKS(1000));
-  // }
   //Create sync timer
   const esp_timer_create_args_t sync_timer_args = {
           .callback = &sync_timer_callback,
@@ -98,6 +82,7 @@ int app_main() {
     strgQueueHandle         = xQueueCreate( RTOS_QUEUE_SIZE, sizeof( RTOS_message_t ) );
     bleQueueHandle          = xQueueCreate( RTOS_QUEUE_SIZE, sizeof( RTOS_message_t ) ); 
     snrQueueHandle          = xQueueCreate( RTOS_QUEUE_SIZE, sizeof( RTOS_message_t ) );
+    wifiQueueHandle         = xQueueCreate( RTOS_QUEUE_SIZE, sizeof( RTOS_message_t ) );
 
     eventQueueHandle        = xQueueCreate( EVENT_QUEUE_SIZE, sizeof( EVENT_message_t ) );
     logQueueHandle          = xQueueCreate( LOG_QUEUE_SIZE, STRING_MAX_LOG_CHARACTERS );
@@ -109,6 +94,7 @@ int app_main() {
     strgTaskHandle          = xTaskCreate(strgTask,         "storage",      RTOS_TASK_STACK_SIZE_4K,  NULL, RTOS_TASK_PRIORITY, NULL);
     bleTaskHandle           = xTaskCreate(bleTask,          "ble",          RTOS_TASK_STACK_SIZE_4K,  NULL, RTOS_TASK_PRIORITY, NULL);
     snrTaskHandle           = xTaskCreate(snrTask,          "snr",          RTOS_TASK_STACK_SIZE_4K,  NULL, RTOS_TASK_PRIORITY, NULL);
+    wifiTaskHandle          = xTaskCreate(wifiTask,         "wifi",         RTOS_TASK_STACK_SIZE_4K,  NULL, RTOS_TASK_PRIORITY, NULL);
 
     sysStartSystem();
 
@@ -126,11 +112,6 @@ uint32_t sys_getMsgTimeStamp(void)
 {
     return systemTimeStamp_ms;
 }
-
-// uint32_t sys_getMsgTimeStamp(void)
-// {
-//     return esp_timer_get_time();
-// }
 
 
 //Task Functions:
@@ -180,6 +161,14 @@ void snrTask(void *param)
   while(1)
   {
     snrTaskApp();
+  }
+}
+
+void wifiTask(void *param) 
+{
+  while(1) 
+  {
+    wifiTaskApp();
   }
 }
 

@@ -189,10 +189,13 @@ void strgTaskApp(void)
     size_t tot=0, used=0;
     scale_config_data_t scaleConfigData;
 
+    ESP_LOGI(STRG_TAG, "Storage task is running");
+
     while(1)
     {
         if (xQueueReceive(strgQueueHandle, &strgRxMessage, portMAX_DELAY))
         {
+            ESP_LOGI(STRG_TAG, "Storage command received: %d", strgRxMessage.msgCmd);
 			switch(strgRxMessage.msgCmd)
 			{
 				case STRG_CMD_INIT:
@@ -1292,6 +1295,7 @@ void strgTaskApp(void)
                         memcpy(strgTmpStr,g_nvs_setting_data.wifi.ssid, strlen(g_nvs_setting_data.wifi.ssid));
                     }
 					strgSendMessage(strgRxMessage.srcAddr, MSG_DATA_STR, STRG_CMD_RD_SSID, (uint8_t *)strgTmpStr, 0, strlen(strgTmpStr)+1);
+                    ESP_LOGI(STRG_TAG, "Wifi ssid being read:%s", (char *)strgTmpStr);
 					break;
 
 				case STRG_CMD_WR_SSID:  //ssid
@@ -1328,6 +1332,7 @@ void strgTaskApp(void)
                         memcpy(strgTmpStr,g_nvs_setting_data.wifi.pwd, strlen(g_nvs_setting_data.wifi.pwd));
                     }					
                     strgSendMessage(strgRxMessage.srcAddr, MSG_DATA_STR, STRG_CMD_RD_PWD, (uint8_t *)strgTmpStr, 0, strlen(strgTmpStr)+1);
+                    ESP_LOGI(STRG_TAG, "STRG_CMD_RD_PWD command returned ssid: %s to address: %d", strgTmpStr, strgRxMessage.srcAddr);
 					break;
 
 				case STRG_CMD_WR_PWD:   //password
